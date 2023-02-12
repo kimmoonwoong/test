@@ -1,10 +1,10 @@
 import json
-
 import torch
 import pandas as pd
 import torch.nn as nn
 import numpy as np
 import librosa
+import Custom_Dataset
 import os
 import glob
 import pickle
@@ -17,49 +17,8 @@ Urbondataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound
 urbanlabelsetting ={}
 filename_list = []
 label_list = []
-data_source = []
-changelabel_list = []
-def train_set():
-    train_dataset_path = 'C:\\Users\\user\\Desktop\\FSDKaggle2018.audio_train'
-    train_set = []
-    a = 0
-    for index, row in dataset.iterrows():
-        file_name = train_dataset_path + '\\' + str(row["fname"])
-        class_label = row["label"]
-        data = librosa.load(file_name, sr=16000)
-        train_set.append([data, class_label])
-        a+=1
-        if a > 100: break
-    print("데이터 생성 완료")
-    return pd.DataFrame(train_set, columns=['data','label'])
 
-def test_set():
-    testdatasetpath = 'C:\\Users\\user\\Desktop\\FSDKaggle2018.audio_test'
-    test_set = []
-    a = 0
-    for index,row in testdataset.iterrows():
-        file_name = testdatasetpath + '\\' + str(row['fname'])
-        class_label = row['label']
-        data = librosa.load(file_name, sr = 16000)
-        test_set.append([data, class_label])
-        a+=1
-        if a > 100: break
-    print("테스트 데이터 생성 완료")
-    return pd.DataFrame(test_set, columns=['data', 'label'])
-
-def labelCheck():
-    train_data_label = {}
-
-    for index,row in dataset.iterrows():
-        class_label = row['label']
-        if class_label in train_data_label:
-            train_data_label[class_label] = train_data_label.get(class_label) + 1
-        else:
-            train_data_label[class_label] = 1
-
-
-    return train_data_label
-
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 def FSDDataset(train_set):
     train_data_label = {}
     label_setting_fsd = {"Bark": 2, "Meow" : 3}
@@ -133,75 +92,28 @@ def AI_HubDataset(train_set):
 
     print("데이터 생성 완료")
     return train_set
-
-
-def slice_data(data, mins):
-    slice_data = []
-    for i in data:
-        slice_data.append(i[:mins])
-
-    slice_data = np.array(slice_data)
-
-    return slice_data
-
-def maxsize_data(data, maxs):
-
-    for i in data:
-        if(len(i) < maxs):
-            print(maxs - len(i))
-            for j in range(maxs - len(i)):
-                item = np.array(0)
-                i = np.append(i, item)
-                print(j)
-        print(i.shape)
-
-
-def minlen(data):
-    mins = 1000000
-    for i in data:
-        if len(i) < mins:
-            mins = len(i)
-    return mins
-
-def maxlen(data):
-    maxs = 0
-    for i in data:
-        if len(i) > maxs:
-            maxs = len(i)
-
-    return maxs
+check = {}
+train_data_label = []
 def extract_feature(data):
     mfccs = []
     slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))
-    a = 0;
+    index = 0
     for i in data:
-        mfcc = librosa.feature.mfcc(y=i, sr=16000, n_mfcc=40, n_fft = 400)
-        mfcc = slice(mfcc, 500)
+        mfcc = librosa.feature.mfcc(y=i, sr=16000, n_mfcc=40, n_fft=400)
+        if mfcc.shape[1] not in check:
+            check[mfcc.shape[1]] = 1
+        else:
+            check[mfcc.shape[1]] = check[mfcc.shape[1]] + 1
+
+        if mfcc.shape[1] < 100:
+            index+=1
+            continue
+
+        mfcc = slice(mfcc, 400)
         mfccs.append(mfcc)
-        a+=1
-        print(a)
+        train_data_label.append(train_data_set.label[index])
+        index+=1
     return mfccs
-
-def create_Data(isdataType):
-    train_wav = train_set()
-    test_wav = test_set()
-
-
-    train_x = np.array(train_wav.data)
-    test_x = np.array(test_wav.data)
-
-    train_min = minlen(train_x)
-    test_min = minlen(test_x)
-
-    mins = np.min([train_min, test_min])
-    train_x = slice_data(train_x, mins)
-    test_x = slice_data(test_x, mins)
-
-    trains_mfcc = extract_feature(train_x)
-    trains_mfcc = np.array(trains_mfcc)
-
-    trains_mfcc = trains_mfcc.reshape(-1, trains_mfcc.shape[1], trains_mfcc.shape[2], 1)
-    return trains_mfcc
 
 
 
@@ -217,8 +129,150 @@ trains_mfcc = extract_feature(train_x)
 trains_mfcc = np.array(trains_mfcc)
 trains_mfcc = trains_mfcc.reshape(-1, trains_mfcc.shape[1], trains_mfcc.shape[2], 1)
 print(np.array(trains_mfcc).shape)
-train_X = trains_mfcc[:1900]
-vail_X = trains_mfcc[1900:]
+print(len(trains_mfcc))
+train_X = trains_mfcc[:1600]
+vail_X = trains_mfcc[1600:]
 
-train_y = train_data_set.label[:1900]
-vail_y = train_data_set.label[1900:].reset_index(drop=True)
+train_y = train_data_label[:1600]
+
+vail_y = []
+for i in range(1600, len(trains_mfcc)):
+    vail_y.append(0)
+class Custom_Dataset(Dataset):
+    def __init__(self, X, y, train_mode=True, transforms=None):
+        self.X = X
+        self.y = y
+        self.train_mode = train_mode
+        self.transforms = transforms
+
+    def __getitem__(self, index):
+        X = self.X[index]
+
+        if self.transforms is not None:
+            X = self.transforms(X)
+
+        if self.train_mode:
+            y = self.y[index]
+            return X,y
+        else:
+            return X
+    def __len__(self):
+        return len(self.X)
+
+num_epochs = 100
+batch_size = 10
+
+train_dataset = Custom_Dataset(X=train_X, y = train_y)
+train_loader = DataLoader(train_dataset,batch_size=batch_size, shuffle=True)
+
+vail_dataset = Custom_Dataset(X=vail_X, y = vail_y)
+vail_loader = DataLoader(vail_dataset, batch_size=batch_size, shuffle=False)
+
+
+
+
+
+import torch.nn
+import torch.nn as nn
+
+class CNNclassification(torch.nn.Module):
+    def __init__(self):
+        super(CNNclassification, self).__init__()
+        self.layer1 = torch.nn.Sequential(
+            nn.Conv2d(40, 10, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+
+        self.layer2 = torch.nn.Sequential(
+            nn.Conv2d(10, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+
+        self.layer3 = torch.nn.Sequential(
+            nn.Conv2d(100, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+
+        self.layer4 = torch.nn.Sequential(
+            nn.Conv2d(200, 300, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+
+        self.fc_layer = nn.Sequential(
+            nn.Linear(300, 10)  # fully connected layer(ouput layer)
+        )
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = torch.flatten(x, start_dim=1)
+
+        out = self.fc_layer(x)
+        return out
+
+import torch.optim as optim
+
+model = CNNclassification().to(device)
+criterion = torch.nn.CrossEntropyLoss().to(device)
+optimizer = torch.optim.SGD(params= model.parameters(), lr=1e-3)
+scheduler = None
+torch.cuda.empty_cache()
+
+from tqdm.auto import tqdm
+
+
+def train(model, optimizer, train_loader, scheduler, device):
+    model.to(device)
+    n = len(train_loader)
+    best_acc = 0
+
+    for epoch in range(1, num_epochs):  # 에포크 설정
+        model.train()  # 모델 학습
+        running_loss = 0.0
+
+        for wav, label in tqdm(iter(train_loader)):
+            wav, label = wav.to(device).float(), label.to(device)  # 배치 데이터
+            optimizer.zero_grad()  # 배치마다 optimizer 초기화
+            print(wav.size())
+            # Data -> Model -> Output
+            logit = model(wav)  # 예측값 산출
+            print(logit.size(), " ", label.size())
+            loss = criterion(logit, label)  # 손실함수 계산
+            print(loss)
+            # 역전파
+            loss.backward()  # 손실함수 기준 역전파
+            print("Dddd")
+            optimizer.step()  # 가중치 최적화
+            running_loss += loss.item()
+
+        print('[%d] Train loss: %.10f' % (epoch, running_loss / len(train_loader)))
+
+        if scheduler is not None:
+            scheduler.step()
+
+        # Validation set 평가
+        model.eval()  # evaluation 과정에서 사용하지 않아야 하는 layer들을 알아서 off 시키도록 하는 함수
+        vali_loss = 0.0
+        correct = 0
+
+        with torch.no_grad():  # 파라미터 업데이트 안하기 때문에 no_grad 사용
+            for wav, label in tqdm(iter(vail_loader)):
+                wav, label = wav.to(device).float(), label.to(device)
+                logit = model(wav)
+                vali_loss += criterion(logit, label)
+                pred = logit.argmax(dim=1, keepdim=True)  # 10개의 class중 가장 값이 높은 것을 예측 label로 추출
+                correct += pred.eq(label.view_as(pred)).sum().item()  # 예측값과 실제값이 맞으면 1 아니면 0으로 합산
+        vali_acc = 100 * correct / len(vail_loader.dataset)
+        print('Vail set: Loss: {:.4f}, Accuracy: {}/{} ( {:.0f}%)\n'.format(vali_loss / len(vail_loader), correct,
+                                                                            len(vail_loader.dataset),
+                                                                            100 * correct / len(vail_loader.dataset)))
+
+        # 베스트 모델 저장
+        if best_acc < vali_acc:
+            best_acc = vali_acc
+            torch.save(model.state_dict(), 'C:\\Users\\user\\Desktop\\ai\\best_model2.pth')  # 이 디렉토리에 best_model.pth을 저장
+            print('Model Saved.')
+
+
+train(model, optimizer, train_loader,scheduler,device)
