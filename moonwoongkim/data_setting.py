@@ -11,11 +11,12 @@ import pickle
 import sklearn
 from torch.utils.data import Dataset, DataLoader
 import json
+from sklearn.model_selection import StratifiedKFold
 import wandb
 
-dataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\train_post_competition.csv')
+dataset = pd.read_csv('E:\\FSDKaggle2018.meta\\train_post_competition.csv')
 testdataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\test_post_competition_scoring_clips.csv')
-Urbondataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+Urbondataset = pd.read_csv('E:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
 urbanlabelsetting = {}
 filename_list = []
 label_list = []
@@ -27,19 +28,12 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def FSDDataset(train_set):          # wav데이터 변환
     label_setting_fsd = {"Bark": 2, "Meow": 3, "Bus": 5, "Squeak": 5, "Knock": 5} # 새롭게 클래스 라벨링
-    FSD_train_dataset_path = 'C:\\Users\\user\\Desktop\\FSDKaggle2018.audio_train'
+    FSD_train_dataset_path = 'E:\\FSDKaggle2018.audio_train'
     data_lock_count = {} # 테스트용으로 각 라벨마다 100개씩 데이터를 뽑아 냄
     for index, row in dataset.iterrows():
         file_name = FSD_train_dataset_path + '\\' + str(row["fname"])
         class_label = row["label"]
         if class_label in label_setting_fsd:  # 데이터 셋에 우리가 쓸 데이터를 골라내는 작업
-
-            if class_label not in data_lock_count:  #테스트용
-                data_lock_count[class_label] = 1
-            elif data_lock_count[class_label] >= 100:
-                continue
-            else:
-                data_lock_count[class_label] = data_lock_count[class_label] + 1
 
             label_check = []            # 나중에 학습할 때 loss계산을 위해 라벨링 형태를 맞춰줌
             for j in range(0, 8):
@@ -50,20 +44,14 @@ def FSDDataset(train_set):          # wav데이터 변환
             data, sr = librosa.load(file_name, sr=16000)    # librosa 모델을 사용하여 fft
             train_set.append([data, label_check])   # 데이터 저장
 
-        a = 0
-        for k in data_lock_count.values():  # 테스트용
-            a += k
-        if a >= 500:
-            break
 
     print("데이터 생성 완료")
     return train_set
 
 
 def UrBanDataset(train_set):    # wav파일 변환
-    Urbandataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
-    Urban_train_dataset_path = 'D:\\UrbanSound8K\\UrbanSound8K\\audio'
-    data_lock_count = {}
+    Urbandataset = pd.read_csv('E:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+    Urban_train_dataset_path = 'E:\\UrbanSound8K\\UrbanSound8K\\audio'
     label_setting_UrBan = {"car_horn": 1, "dog_bark": 2, "siren": 4, "street_music": 5, "drilling": 5,
                            "air_conditioner": 5, "jachammer": 5}    # 새롭게 라벨링
     for index, row in Urbandataset.iterrows():
@@ -72,14 +60,6 @@ def UrBanDataset(train_set):    # wav파일 변환
             file_name = row['slice_file_name']
             fold_number = row['fold']
             file_path = Urban_train_dataset_path + '\\' + 'fold' + str(fold_number) + '\\' + file_name
-
-            if class_label not in data_lock_count:      # 테스트용
-                data_lock_count[class_label] = 1
-            elif data_lock_count[class_label] >= 100:
-                continue
-            else:
-                data_lock_count[class_label] = data_lock_count[class_label] + 1
-
             label_check = []        # 나중에 학습할 때 loss계산을 위해 라벨링 형태를 맞춰줌
             for j in range(0, 8):
                 if j + 1 == label_setting_UrBan[class_label]:
@@ -89,22 +69,15 @@ def UrBanDataset(train_set):    # wav파일 변환
             data, sr = librosa.load(file_path, sr=16000) # librosa 모델을 사용하여 fft
             train_set.append([data, label_check])   # 데이터 저장
 
-        a = 0
-        for k in data_lock_count.values():  # 테스트 용
-            a += k
-        if a >= 700:
-            break
-
     print("데이터 생성 완료")
 
     return train_set
 
 def AI_HubDataset(train_set):
-    Ai_Hub_dataset_path = 'D:\\도시소리'
+    Ai_Hub_dataset_path = 'E:\\도시소리'
     Ai_Hub_type_path = ['자동차', '이륜자동차', '동물']
-    Ai_Hub_labelset = 'C:\\Users\\user\\Desktop\\교통소음'
+    Ai_Hub_labelset = 'E:\\교통소음'
     label_setting_aihub = {"차량경적": 1, "차량주행음": 5, "차량사이렌": 4, "이륜차경적": 1, "이륜차주행음": 5, "개": 2, "고양이": 3} # 새롭게 라벨링
-    data_lock_count = {}
     for s in Ai_Hub_type_path:
         path = Ai_Hub_labelset + '\\' + str(s)
         filelist = os.listdir(path)
@@ -129,19 +102,14 @@ def AI_HubDataset(train_set):
                     data, sr = librosa.load(data_file_path, sr=16000)   # librosa 모델을 사용하여 fft
                     train_set.append([data, label_check])   # 데이터 저장
 
-        a = 0
-        for k in data_lock_count.values():  # 테스트 용
-            a += k
-        if a >= 700:
-            break
 
     print("데이터 생성 완료")
     return train_set
 
 def AI_HubAlertDataset(train_set):
-    AI_HubAlert_dataset_path = 'D:\\경보소리'
+    AI_HubAlert_dataset_path = 'E:\\경보소리'
     AI_HubAlert_type_path = ["도난경보", "화재경보", "비상경보"]
-    AI_HubAlert_label_path = "D:\\경보소리라벨링\\경보"
+    AI_HubAlert_label_path = "E:\\경보소리라벨링\\경보"
     label_setting_ai_hubAleart = {"도난경보 소리": 8, "도난 경보음 소리": 8, "침입감지 경보 소리": 8, "화재경보 소리":7, "화재 경보 소리": 7,
                                   "가스누설 화재경보 소리": 7, "자동차 경적 소리": 1, "비상경보 소리": 6, "철도 건널목 신호음 소리": 6, "민방위훈련 사이렌 소리": 6, "공습경보 소리" : 6} # 새롭게 라벨링
     for s in AI_HubAlert_type_path:
@@ -164,7 +132,8 @@ def AI_HubAlertDataset(train_set):
                     else:
                         label_check.append(0)
                 data, sr = librosa.load(data_file_path, sr=16000)       # librosa 모델을 사용하여 fft
-                train_set.append([data, label_check])                   # 데이터 저장
+                for i in range(0,10):
+                    train_set.append([data, label_check])                   # 데이터 저장
     print("데이터 생성 완료")
     return train_set
 
@@ -178,10 +147,11 @@ def extract_feature(data, label, isCheck):      # 위에서 변환한 데이터�
     for i in data:
         mfcc = librosa.feature.mfcc(y=i, sr=16000, n_mfcc=40, n_fft=400)    # mfcc를 통해 벡터화를 시킴
         if index >= isCheck:            # 앞서 말한 데이터부터 10초가량을 짜름
-            mfcc = mfcc[:, 1000:]
+            mfcc = mfcc[:, 1100:]
         else:
             index += 1
-        mfcc = slice(mfcc, 110)     # 설정한 길이에 맞게 맞춰주는 작업
+        if mfcc.shape[1] <= 80: continue
+        mfcc = slice(mfcc, 320)     # 설정한 길이에 맞게 맞춰주는 작업
         mfccs.append(mfcc)          # 데이터 저장
     return mfccs
 
@@ -192,7 +162,7 @@ train_data_set = UrBanDataset(train_data_set)
 train_data_set = AI_HubDataset(train_data_set)
 isCheck = len(train_data_set)
 train_data_set = AI_HubAlertDataset(train_data_set)
-
+print(len(train_data_set))
 train_data_set = pd.DataFrame(train_data_set, columns=['data', 'label'])
 # f = open("data_setcheck.csv", "w")
 #
@@ -216,10 +186,12 @@ random.shuffle(temp)        # 랜덤으로 돌림
 train_X = [n[0] for n in temp]     #다시 데이터와 라벨링으로 나눔
 train_y = [n[1] for n in temp]
 # 훈련 셋과 검증 셋으로 7:3으로 나눔
-train_data_X = train_X[:1600]
-train_data_y = train_y[:1600]
-vail_data_X = train_X[1600:]
-vail_data_y = train_y[1600:]
+
+test_data_X = train_X[len(train_X) - 12:]
+test_data_y = train_y[len(train_X) - 12:]
+
+train_X = train_X[:len(train_X) - 12]
+train_y = train_y[:len(train_y) - 12]
 
 class Custom_Dataset(Dataset):
     def __init__(self, X, y, train_mode=True, transforms=None):
@@ -245,78 +217,67 @@ class Custom_Dataset(Dataset):
 
 
 from torch.utils.data.dataset import random_split
-num_epochs = 100
-batch_size = 6
-train_dataset = Custom_Dataset(X=train_data_X, y = train_data_y)
-vail_dataset = Custom_Dataset(X=vail_data_X, y= vail_data_y)
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-vail_loader = DataLoader(vail_dataset, batch_size=batch_size, shuffle=True)
-
+num_epochs = 100 # 학습을 num_epochs만큼 돌림
+batch_size = 6   # 배치 사이즈 설정
+# 학습을 위한 데이터로 변환(torch.tensor)
+test_dataset = Custom_Dataset(X=test_data_X, y=None, train_mode=False)
+test_loder = DataLoader(test_dataset, batch_size=6, shuffle=False)
 import torch.nn
 import torch.nn as nn
 
+# CNN 모델
+class CNNclassification(torch.nn.Module): # 4중 layer로 구현
+     def __init__(self):
+         super(CNNclassification, self).__init__()
+         self.layer1 = torch.nn.Sequential(
+             nn.Conv2d(40, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.ReLU(),  # activation function
+             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
-class CNNclassification(torch.nn.Module):
-    def __init__(self):
-        super(CNNclassification, self).__init__()
-        self.layer1 = torch.nn.Sequential(
-            nn.Conv2d(40, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
-            nn.ReLU(),  # activation function
+         self.layer2 = torch.nn.Sequential(
+             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.ReLU(),  # activation function
             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
-        self.layer2 = torch.nn.Sequential(
-            nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
-            nn.ReLU(),  # activation function
-            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+         self.layer3 = torch.nn.Sequential(
+             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.ReLU(),  # activation function
+             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
-        self.layer3 = torch.nn.Sequential(
-            nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
-            nn.ReLU(),  # activation function
-            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+         self.layer4 = torch.nn.Sequential(
+             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.ReLU(),  # activation function
+             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
-        self.layer4 = torch.nn.Sequential(
-            nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
-            nn.ReLU(),  # activation function
-            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+         self.fc_layer = nn.Sequential(
+             nn.Linear(2000, 8)  # fully connected layer(ouput layer)
+         )
 
-        self.fc_layer = nn.Sequential(
-            nn.Linear(2500, 8)  # fully connected layer(ouput layer)
-        )
+     def forward(self, x):
 
-    def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        x = torch.flatten(x, start_dim=1)
-        out = self.fc_layer(x)
-        return out
+         x = self.layer1(x)
+         x = self.layer2(x)
+         x = self.layer3(x)
+         x = self.layer4(x)
+         x = torch.flatten(x, start_dim=1)
+         out = self.fc_layer(x)
+         return out
+
 
 
 import torch.optim as optim
 
-torch.cuda.empty_cache()
-model = CNNclassification().to(device)
-criterion = torch.nn.CrossEntropyLoss().to(device)
-optimizer = torch.optim.SGD(params=model.parameters(), lr=1e-3)
-scheduler = None
+
 
 from tqdm.auto import tqdm
 
-wandb.init(project="test1")
-wandb.config = {
-    "epochs" : 150,
-    "batch_size" : 6
-}
-
-def train(model, optimizer, train_loader, scheduler, device):
-    model.to(device)
+def train(model, optimizer, train_loaders, vail_loaders, scheduler, device, fold):   # 학습
     best_acc = 0
-
+    print(len(train_loaders), len(vail_loaders), len(train_loaders.dataset), len(vail_loaders.dataset))
     for epoch in range(1, num_epochs):  # 에포크 설정
         model.train()  # 모델 학습
         running_loss = 0.0
-        for wav, label in tqdm(iter(train_loader)):
+        for wav, label in tqdm(iter(train_loaders)):
             wav, label = wav.to(device).float(), label.to(device).long()  # 배치 데이터
             optimizer.zero_grad()  # 배치마다 optimizer 초기화
             # Data -> Model -> Output
@@ -327,7 +288,7 @@ def train(model, optimizer, train_loader, scheduler, device):
             optimizer.step()  # 가중치 최적화
             running_loss += loss.item()
 
-        print('[%d] Train loss: %.10f' % (epoch, running_loss / len(train_loader)))
+        print('[%d] Train loss: %.10f' % (epoch, running_loss / len(train_loaders)))
 
         if scheduler is not None:
             scheduler.step()
@@ -338,27 +299,124 @@ def train(model, optimizer, train_loader, scheduler, device):
         correct = 0
 
         with torch.no_grad():  # 파라미터 업데이트 안하기 때문에 no_grad 사용
-            for wav, label in tqdm(iter(vail_loader)):
+            for wav, label in tqdm(iter(vail_loaders)):
                 wav, label = wav.to(device).float(), label.to(device).long()
                 logit = model(wav)
                 vali_loss += criterion(logit, torch.max(label, 1)[1])
                 pred = logit.argmax(dim=1, keepdim=True)  # 10개의 class중 가장 값이 높은 것을 예측 label로 추출
                 label = label.argmax(dim=1, keepdim=True)
                 correct += pred.eq(label.view_as(pred)).sum().item()  # 예측값과 실제값이 맞으면 1 아니면 0으로 합산
-        vali_acc = 100 * correct / len(vail_loader.dataset)
-        print('Vail set: Loss: {:.4f}, Accuracy: {}/{} ( {:.0f}%)\n'.format(vali_loss / len(vail_loader), correct,
-                                                                            len(vail_loader.dataset),
-                                                                            100 * correct / len(vail_loader.dataset)))
-        acc = 100 * correct / len(vail_loader.dataset)
-        wandb.log({"acc" : acc,
-                   "current_epoch": epoch,
-                   "loss": vali_loss})
+        vali_acc = 100 * correct / len(vail_loaders.dataset)
+        print('Vail set: Loss: {:.4f}, Accuracy: {}/{} ( {:.0f}%)\n'.format(vali_loss / len(vail_loaders), correct,
+                                                                            len(vail_loaders.dataset),
+                                                                            100 * correct / len(vail_loaders.dataset)))
+        acc = 100 * correct / len(vail_loaders.dataset)
         # 베스트 모델 저장
         if best_acc < vali_acc:
             best_acc = vali_acc
             torch.save(model.state_dict(),
-                       'C:\\Users\\user\\Desktop\\ai\\best_model2.pth')  # 이 디렉토리에 best_model.pth을 저장
+                       'C:\\Users\\user\\Desktop\\ai\\best_model' + str(fold) + ".pt")  # 이 디렉토리에 best_model.pth을 저장
             print('Model Saved.')
 
+    return best_acc
 
-train(model, optimizer, train_loader, scheduler, device)
+
+
+test_y = []
+for i in train_y:
+    for j in range(0, len(i)):
+        if i[j] == 1:
+            test_y.append(j)
+            break
+
+test_y = np.array(test_y)
+skf = StratifiedKFold()
+skf.get_n_splits(train_X, test_y)
+print(skf)
+train_X = np.array(train_X)
+
+fold0_model = CNNclassification().to(device)
+fold1_model = CNNclassification().to(device)
+fold2_model = CNNclassification().to(device)
+fold3_model = CNNclassification().to(device)
+fold4_model = CNNclassification().to(device)
+model_list = [fold0_model, fold1_model, fold2_model, fold3_model, fold4_model]
+result = {}
+for fold, (train_index, vail_index) in enumerate(skf.split(train_X, test_y)):
+    print(f"Fold {fold}")
+    print('------------------------------------------------')
+    train_data_test_X = []
+    train_data_test_y = []
+    for i in train_index:
+        train_data_test_X.append(train_X[i])
+        new_label = []
+        for label_index in range(0,8):
+            if label_index == test_y[i]:
+                new_label.append(1)
+            else:
+                new_label.append(0)
+        new_label = np.array(new_label)
+        train_data_test_y.append(new_label)
+
+    vail_data_test_X = []
+    vail_data_test_y = []
+    for i in vail_index:
+        vail_data_test_X.append(train_X[i])
+        new_label = []
+        for label_index in range(0,8):
+            if label_index == test_y[i]:
+                new_label.append(1)
+            else:
+                new_label.append(0)
+        new_label = np.array(new_label)
+        vail_data_test_y.append(new_label)
+    print(len(train_index), len(vail_index))
+    torch.cuda.empty_cache()
+    criterion = torch.nn.CrossEntropyLoss().to(device)
+    optimizer = torch.optim.SGD(params=model_list[fold].parameters(), lr=1e-3)
+    scheduler = None
+    train_data_test_set = Custom_Dataset(train_data_test_X,train_data_test_y)
+    train_test_loder = DataLoader(train_data_test_set, batch_size=batch_size, shuffle=True)
+    vail_data_test_set = Custom_Dataset(vail_data_test_X, vail_data_test_y)
+    vail_test_loder = DataLoader(vail_data_test_set, batch_size=batch_size, shuffle=False)
+    acc = train(model_list[fold], optimizer, train_test_loder, vail_test_loder, scheduler, device, fold)
+
+    result[fold] = acc
+
+    print('Accuracy for fold %d: %d %%' % (fold, acc))
+    print('------------------------------------------------')
+
+
+for key, value in result.items():
+    print(f"Fold : {key} ACC : {value}")
+def prediction(model, predic_data, device):
+    predic_list = []
+    model.eval()
+    with torch.no_grad():
+        for wav in tqdm(iter(predic_data)):
+            wav = wav.to(device).float()
+            logit = model(wav)
+            pred = logit.argmax(dim = 1, keepdim = True)
+            predic_list.append(pred.tolist())
+    return predic_list
+
+import torch
+
+check_point = torch.load('C:\\Users\\user\\Desktop\\ai\\best_model2.pt', map_location=device)
+model = CNNclassification().to(device)
+model.load_state_dict(torch.load('C:\\Users\\user\\Desktop\\ai\\best_model2.pt', map_location=device))
+data_path = 'E:\\경보소리\\화재경보\\S-211014_S_103_C_128_0001.wav'
+
+list = []
+data,sr = librosa.load(data_path)
+slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))    # 데이터의 길이를 설정한 길이에 맞게 맞춰줌
+test_mfcc = librosa.feature.mfcc(y=data, sr=16000, n_mfcc=40, n_fft=400)
+test_mfcc = test_mfcc[:, 1000:]
+test_mfcc = slice(test_mfcc, 320)     # 설정한 길이에 맞게 맞춰주는 작업\
+list.append(test_mfcc)
+list = np.array(list)
+list = list.reshape(-1, trains_mfcc.shape[1], trains_mfcc.shape[2], 1)
+test_da = Custom_Dataset(X=list, y=None, train_mode=False)
+test_lod = DataLoader(test_da, batch_size=batch_size, shuffle=False)
+preds = prediction(model, test_lod, device)
+print(preds)
