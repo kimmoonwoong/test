@@ -41,7 +41,7 @@ def FSDDataset(train_set):          # wav데이터 변환
                     label_check.append(1)
                 else:
                     label_check.append(0)
-            data, sr = librosa.load(file_name, sr=16000)    # librosa 모델을 사용하여 fft
+            data, sr = librosa.load(file_name, sr=22050)    # librosa 모델을 사용하여 fft
             train_set.append([data, label_check])   # 데이터 저장
 
 
@@ -66,7 +66,7 @@ def UrBanDataset(train_set):    # wav파일 변환
                     label_check.append(1)
                 else:
                     label_check.append(0)
-            data, sr = librosa.load(file_path, sr=16000) # librosa 모델을 사용하여 fft
+            data, sr = librosa.load(file_path, sr=22050) # librosa 모델을 사용하여 fft
             train_set.append([data, label_check])   # 데이터 저장
 
     print("데이터 생성 완료")
@@ -99,7 +99,7 @@ def AI_HubDataset(train_set):
                             label_check.append(1)
                         else:
                             label_check.append(0)
-                    data, sr = librosa.load(data_file_path, sr=16000)   # librosa 모델을 사용하여 fft
+                    data, sr = librosa.load(data_file_path, sr=22050)   # librosa 모델을 사용하여 fft
                     train_set.append([data, label_check])   # 데이터 저장
 
 
@@ -131,7 +131,7 @@ def AI_HubAlertDataset(train_set):
                         label_check.append(1)
                     else:
                         label_check.append(0)
-                data, sr = librosa.load(data_file_path, sr=16000)       # librosa 모델을 사용하여 fft
+                data, sr = librosa.load(data_file_path, sr=22050)       # librosa 모델을 사용하여 fft
                 for i in range(0,10):
                     train_set.append([data, label_check])                   # 데이터 저장
     print("데이터 생성 완료")
@@ -145,14 +145,17 @@ def extract_feature(data, label, isCheck):      # 위에서 변환한 데이터�
     slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))    # 데이터의 길이를 설정한 길이에 맞게 맞춰줌
     index = 0           # 한 군데에서 가져온 데이터가 앞에 10가량이 무슨 소리인지 소개하는 소리이기에 짜르기 위해 그 데이터를 찾아냄
     for i in data:
-        mfcc = librosa.feature.mfcc(y=i, sr=16000, n_mfcc=40, n_fft=400)    # mfcc를 통해 벡터화를 시킴
+        mfcc = librosa.feature.mfcc(y=i, sr=22050, n_mfcc=40, n_fft=400)    # mfcc를 통해 벡터화를 시킴
         if index >= isCheck:            # 앞서 말한 데이터부터 10초가량을 짜름
             mfcc = mfcc[:, 1100:]
         else:
             index += 1
-        if mfcc.shape[1] <= 80: continue
-        mfcc = slice(mfcc, 320)     # 설정한 길이에 맞게 맞춰주는 작업
-        mfccs.append(mfcc)          # 데이터 저장
+        mfcc = slice(mfcc, 160)     # 설정한 길이에 맞게 맞춰주는 작업
+
+        delta_mfcc = librosa.feature.delta(mfcc)
+        delta_mfcc2 = librosa.feature.delta(mfcc, 2)
+        features = np.concatenate([mfcc, delta_mfcc, delta_mfcc2], axis=0)
+        mfccs.append(features)          # 데이터 저장
     return mfccs
 
 
@@ -230,27 +233,27 @@ class CNNclassification(torch.nn.Module): # 4중 layer로 구현
      def __init__(self):
          super(CNNclassification, self).__init__()
          self.layer1 = torch.nn.Sequential(
-             nn.Conv2d(40, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(40, 80, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer2 = torch.nn.Sequential(
-             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
-             nn.ReLU(),  # activation function
+            nn.Conv2d(80, 160, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer3 = torch.nn.Sequential(
-             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(160, 320, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer4 = torch.nn.Sequential(
-             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(320, 640, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.fc_layer = nn.Sequential(
-             nn.Linear(2000, 8)  # fully connected layer(ouput layer)
+             nn.Linear(640 * 10 * 1, 8)  # fully connected layer(ouput layer)
          )
 
      def forward(self, x):
@@ -273,7 +276,6 @@ from tqdm.auto import tqdm
 
 def train(model, optimizer, train_loaders, vail_loaders, scheduler, device, fold):   # 학습
     best_acc = 0
-    print(len(train_loaders), len(vail_loaders), len(train_loaders.dataset), len(vail_loaders.dataset))
     for epoch in range(1, num_epochs):  # 에포크 설정
         model.train()  # 모델 학습
         running_loss = 0.0
@@ -402,21 +404,27 @@ def prediction(model, predic_data, device):
 
 import torch
 
-check_point = torch.load('C:\\Users\\user\\Desktop\\ai\\best_model2.pt', map_location=device)
+check_point = torch.load('C:\\Users\\user\\Desktop\\ai\\best_model1.pt', map_location=device)
 model = CNNclassification().to(device)
-model.load_state_dict(torch.load('C:\\Users\\user\\Desktop\\ai\\best_model2.pt', map_location=device))
-data_path = 'E:\\경보소리\\화재경보\\S-211014_S_103_C_128_0001.wav'
+model.load_state_dict(torch.load('C:\\Users\\user\\Desktop\\ai\\best_model1.pt', map_location=device))
 
+data_path = 'E:\\test'
 list = []
-data,sr = librosa.load(data_path)
 slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))    # 데이터의 길이를 설정한 길이에 맞게 맞춰줌
-test_mfcc = librosa.feature.mfcc(y=data, sr=16000, n_mfcc=40, n_fft=400)
-test_mfcc = test_mfcc[:, 1000:]
-test_mfcc = slice(test_mfcc, 320)     # 설정한 길이에 맞게 맞춰주는 작업\
-list.append(test_mfcc)
+
+file_list = os.listdir(data_path)
+for file_name in file_list:
+    path = data_path + "\\" + file_name
+    data,sr = librosa.load(path, sr=22050)
+    test_mfcc = librosa.feature.mfcc(y=data, sr=22050, n_mfcc=40, n_fft=400)
+    test_mfcc = slice(test_mfcc, 320)     # 설정한 길이에 맞게 맞춰주는 작업
+    list.append(test_mfcc)
 list = np.array(list)
-list = list.reshape(-1, trains_mfcc.shape[1], trains_mfcc.shape[2], 1)
+list = list.reshape(-1, list.shape[1], list.shape[2], 1)
 test_da = Custom_Dataset(X=list, y=None, train_mode=False)
 test_lod = DataLoader(test_da, batch_size=batch_size, shuffle=False)
-preds = prediction(model, test_lod, device)
+preds = prediction(model, test_loder, device)
+print(preds)
+print(test_data_y)
+preds = prediction(model, test_lod,device)
 print(preds)
