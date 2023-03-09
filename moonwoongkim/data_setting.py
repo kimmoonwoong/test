@@ -77,7 +77,7 @@ def AI_HubDataset(train_set):
     Ai_Hub_dataset_path = 'E:\\도시소리'
     Ai_Hub_type_path = ['자동차', '이륜자동차', '동물']
     Ai_Hub_labelset = 'E:\\교통소음'
-    label_setting_aihub = {"차량경적": 1, "차량주행음": 5, "차량사이렌": 4, "이륜차경적": 1, "이륜차주행음": 5, "개": 2, "고양이": 3} # 새롭게 라벨링
+    label_setting_aihub = {"차량경적": 1, "차량사이렌": 4, "이륜차경적": 1, "개": 2, "고양이": 3} # 새롭게 라벨링
     for s in Ai_Hub_type_path:
         path = Ai_Hub_labelset + '\\' + str(s)
         filelist = os.listdir(path)
@@ -145,12 +145,12 @@ def extract_feature(data, label, isCheck):      # 위에서 변환한 데이터�
     slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))    # 데이터의 길이를 설정한 길이에 맞게 맞춰줌
     index = 0           # 한 군데에서 가져온 데이터가 앞에 10가량이 무슨 소리인지 소개하는 소리이기에 짜르기 위해 그 데이터를 찾아냄
     for i in data:
-        mfcc = librosa.feature.mfcc(y=i, sr=16000, n_mfcc=40, n_fft=400)    # mfcc를 통해 벡터화를 시킴
+        mfcc = librosa.feature.mfcc(y=i, sr=16000, n_mfcc=40)    # mfcc를 통해 벡터화를 시킴
         if index >= isCheck:            # 앞서 말한 데이터부터 10초가량을 짜름
             mfcc = mfcc[:, 1100:]
         else:
             index += 1
-        if mfcc.shape[1] <= 80: continue
+        if mfcc.shape[1] <= 60: continue
         mfcc = slice(mfcc, 320)     # 설정한 길이에 맞게 맞춰주는 작업
         mfccs.append(mfcc)          # 데이터 저장
     return mfccs
@@ -230,27 +230,27 @@ class CNNclassification(torch.nn.Module): # 4중 layer로 구현
      def __init__(self):
          super(CNNclassification, self).__init__()
          self.layer1 = torch.nn.Sequential(
-             nn.Conv2d(40, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(40, 80, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer2 = torch.nn.Sequential(
-             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(80, 160, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer3 = torch.nn.Sequential(
-             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(160, 320, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer4 = torch.nn.Sequential(
-             nn.Conv2d(100, 100, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(320, 640, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.fc_layer = nn.Sequential(
-             nn.Linear(2000, 8)  # fully connected layer(ouput layer)
+             nn.Linear(640 * 20 * 1, 8)  # fully connected layer(ouput layer)
          )
 
      def forward(self, x):
