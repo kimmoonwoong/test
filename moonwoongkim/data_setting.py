@@ -236,7 +236,6 @@ class CNNclassification(torch.nn.Module): # 4중 layer로 구현
              nn.Conv2d(40, 80, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
-
          self.layer2 = torch.nn.Sequential(
             nn.Conv2d(80, 160, kernel_size=2, stride=1, padding=1),  # cnn layer
             nn.ReLU(),  # activation function
@@ -428,3 +427,4 @@ print(preds)
 print(test_data_y)
 preds = prediction(model, test_lod,device)
 print(preds)
+
