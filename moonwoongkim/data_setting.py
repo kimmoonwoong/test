@@ -150,10 +150,10 @@ def extract_feature(data, label, isCheck):      # 위에서 변환한 데이터�
             mfcc = mfcc[:, 1100:]
         else:
             index += 1
-        mfcc = slice(mfcc, 160)     # 설정한 길이에 맞게 맞춰주는 작업
+        mfcc = slice(mfcc, 80)     # 설정한 길이에 맞게 맞춰주는 작업
 
         delta_mfcc = librosa.feature.delta(mfcc)
-        delta_mfcc2 = librosa.feature.delta(mfcc, 2)
+        delta_mfcc2 = librosa.feature.delta(mfcc, order=2)
         features = np.concatenate([mfcc, delta_mfcc, delta_mfcc2], axis=0)
         mfccs.append(features)          # 데이터 저장
     return mfccs
@@ -220,7 +220,7 @@ class Custom_Dataset(Dataset):
 
 
 from torch.utils.data.dataset import random_split
-num_epochs = 100 # 학습을 num_epochs만큼 돌림
+num_epochs = 60 # 학습을 num_epochs만큼 돌림
 batch_size = 6   # 배치 사이즈 설정
 # 학습을 위한 데이터로 변환(torch.tensor)
 test_dataset = Custom_Dataset(X=test_data_X, y=None, train_mode=False)
@@ -233,27 +233,27 @@ class CNNclassification(torch.nn.Module): # 4중 layer로 구현
      def __init__(self):
          super(CNNclassification, self).__init__()
          self.layer1 = torch.nn.Sequential(
-             nn.Conv2d(40, 80, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(120, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer2 = torch.nn.Sequential(
-            nn.Conv2d(80, 160, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
             nn.ReLU(),  # activation function
             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer3 = torch.nn.Sequential(
-             nn.Conv2d(160, 320, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.layer4 = torch.nn.Sequential(
-             nn.Conv2d(320, 640, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
              nn.ReLU(),  # activation function
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.fc_layer = nn.Sequential(
-             nn.Linear(640 * 10 * 1, 8)  # fully connected layer(ouput layer)
+             nn.Linear(200 * 5 * 1, 8)  # fully connected layer(ouput layer)
          )
 
      def forward(self, x):
@@ -265,8 +265,28 @@ class CNNclassification(torch.nn.Module): # 4중 layer로 구현
          x = torch.flatten(x, start_dim=1)
          out = self.fc_layer(x)
          return out
+from torch.autograd import Variable
+class LSTMclassification(torch.nn.Module):
+    def __init__(self, input_size, hidden_size, num_layer):
+        super(LSTMclassification, self).__init__()
+        self.num_layer = num_layer;
+        self.input_size = input_size
+        self.hidden_size = hidden_size
 
-
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layer=num_layer,batch_first=True)
+        self.fc_1 = nn.Linear(hidden_size, 128)
+        self.fc = nn.Linear(128, 8)
+        self.relu = nn.ReLU()
+    def forward(self, x):
+        h_0 = Variable(torch.zeros(self.num_layer, x.size(0), self.hidden_size))
+        c_0 = Variable(torch.zeros(self.num_layer, x.size(0), self.hidden_size))
+        output, (hn,cn) = self.lstm(x,(h_0,c_0))
+        hn = hn.view(-1,self.hidden_size)
+        out = self.relu(hn)
+        out = self.fc_1(out)
+        out = self.relu(out)
+        out = self.fc(out)
+        return out
 
 import torch.optim as optim
 
@@ -404,27 +424,36 @@ def prediction(model, predic_data, device):
 
 import torch
 
-check_point = torch.load('C:\\Users\\user\\Desktop\\ai\\best_model1.pt', map_location=device)
+check_point = torch.load('C:\\Users\\user\\Desktop\\ai\\best_model0.pt', map_location=device)
 model = CNNclassification().to(device)
-model.load_state_dict(torch.load('C:\\Users\\user\\Desktop\\ai\\best_model1.pt', map_location=device))
+model.load_state_dict(torch.load('C:\\Users\\user\\Desktop\\ai\\best_model0.pt', map_location=device))
 
 data_path = 'E:\\test'
 list = []
 slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))    # 데이터의 길이를 설정한 길이에 맞게 맞춰줌
 
 file_list = os.listdir(data_path)
+index = []
 for file_name in file_list:
     path = data_path + "\\" + file_name
     data,sr = librosa.load(path, sr=22050)
     test_mfcc = librosa.feature.mfcc(y=data, sr=22050, n_mfcc=40, n_fft=400)
-    test_mfcc = slice(test_mfcc, 320)     # 설정한 길이에 맞게 맞춰주는 작업
-    list.append(test_mfcc)
+    print(test_mfcc.shape[1], int(test_mfcc.shape[1] / 160))
+    test_mfcc_prev = slice(test_mfcc, 80)     # 설정한 길이에 맞게 맞춰주는 작업
+    delta_mfcc = librosa.feature.delta(test_mfcc_prev)
+    delta_mfcc2 = librosa.feature.delta(test_mfcc_prev, order=2)
+    features = np.concatenate([test_mfcc_prev, delta_mfcc, delta_mfcc2], axis=0)
+    list.append(features)
+
 list = np.array(list)
 list = list.reshape(-1, list.shape[1], list.shape[2], 1)
+print(list.shape)
 test_da = Custom_Dataset(X=list, y=None, train_mode=False)
 test_lod = DataLoader(test_da, batch_size=batch_size, shuffle=False)
 preds = prediction(model, test_loder, device)
 print(preds)
-print(test_data_y)
+for i in test_data_y:
+    print(i.argmax(), end=" ")
+print()
 preds = prediction(model, test_lod,device)
 print(preds)
