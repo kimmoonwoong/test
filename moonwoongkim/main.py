@@ -11,12 +11,9 @@ import pickle
 import sklearn
 from torch.utils.data import Dataset, DataLoader
 import json
-from pydub import AudioSegment
-from pydub import AudioSegment
-
 dataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\train_post_competition.csv')
 testdataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\test_post_competition_scoring_clips.csv')
-Urbondataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+Urbondataset = pd.read_csv('E:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
 urbanlabelsetting = {}
 filename_list = []
 label_list = []
@@ -60,8 +57,8 @@ def FSDDataset_test_1(train_set, vail_set):
 
 
 def UrBanDataset_test_1(train_set, vail_set):
-    Urbandataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
-    Urban_train_dataset_path = 'D:\\UrbanSound8K\\UrbanSound8K\\audio'
+    Urbandataset = pd.read_csv('E:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+    Urban_train_dataset_path = 'E:\\UrbanSound8K\\UrbanSound8K\\audio'
     data_lock_count = {}
     label_setting_UrBan = {"car_horn": 1, "dog_bark": 2, "siren": 4, "street_music": 5, "drilling": 5,
                            "air_conditioner": 5, "jachammer": 5}
@@ -97,9 +94,9 @@ def UrBanDataset_test_1(train_set, vail_set):
 
 
 def AI_HubDataset_test_1(train_set, vail_set):
-    Ai_Hub_dataset_path = 'D:\\도시소리'
+    Ai_Hub_dataset_path = 'E:\\도시소리'
     Ai_Hub_type_path = ['자동차', '이륜자동차', '동물']
-    Ai_Hub_labelset = 'C:\\Users\\user\\Desktop\\교통소음'
+    Ai_Hub_labelset = 'E:\\교통소음'
     label_setting_aihub = {"차량경적": 1, "차량주행음": 5, "차량사이렌": 4, "이륜차경적": 1, "이륜차주행음": 5, "개": 2, "고양이": 3}
     data_len = {"차량경적": 3189, "차량주행음":1682, "차량사이렌": 1990, "이륜차경적": 4560, "이륜차주행음": 4735, "개":2077, "고양이": 2016}
     data_lock_count = {}
@@ -138,9 +135,9 @@ def AI_HubDataset_test_1(train_set, vail_set):
     return train_set, vail_set
 
 def AI_HubAlertDataset_test_1(train_set, vail_set):
-    AI_HubAlert_dataset_path = 'D:\\경보소리'
+    AI_HubAlert_dataset_path = 'E:\\경보소리'
     AI_HubAlert_type_path = ["도난경보", "화재경보", "비상경보"]
-    AI_HubAlert_label_path = "D:\\경보소리라벨링\\경보"
+    AI_HubAlert_label_path = "E:\\경보소리라벨링\\경보"
     label_setting_ai_hubAleart = {"도난경보 소리": 8, "도난 경보음 소리": 8, "침입감지 경보 소리": 8, "화재경보 소리":7, "화재 경보 소리": 7, "가스누설 화재경보 소리": 7, "자동차 경적 소리": 1, "비상경보 소리": 6, "철도 건널목 신호음 소리": 6, "민방위훈련 사이렌 소리": 6, "공습경보 소리" : 6}
     data_len = {8: 134, 7: 171, 1: 113, 6: 81}
     data_lock_count = {}
