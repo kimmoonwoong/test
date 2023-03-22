@@ -14,9 +14,9 @@ import json
 from sklearn.model_selection import StratifiedKFold
 import wandb
 
-dataset = pd.read_csv('E:\\FSDKaggle2018.meta\\train_post_competition.csv')
+dataset = pd.read_csv('D:\\FSDKaggle2018.meta\\train_post_competition.csv')
 testdataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\test_post_competition_scoring_clips.csv')
-Urbondataset = pd.read_csv('E:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+Urbondataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
 urbanlabelsetting = {}
 filename_list = []
 label_list = []
@@ -28,7 +28,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def FSDDataset(train_set):          # wav데이터 변환
     label_setting_fsd = {"Bark": 2, "Meow": 3, "Bus": 5, "Squeak": 5, "Knock": 5} # 새롭게 클래스 라벨링
-    FSD_train_dataset_path = 'E:\\FSDKaggle2018.audio_train'
+    FSD_train_dataset_path = 'D:\\FSDKaggle2018.audio_train'
     data_lock_count = {} # 테스트용으로 각 라벨마다 100개씩 데이터를 뽑아 냄
     for index, row in dataset.iterrows():
         file_name = FSD_train_dataset_path + '\\' + str(row["fname"])
@@ -50,8 +50,8 @@ def FSDDataset(train_set):          # wav데이터 변환
 
 
 def UrBanDataset(train_set):    # wav파일 변환
-    Urbandataset = pd.read_csv('E:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
-    Urban_train_dataset_path = 'E:\\UrbanSound8K\\UrbanSound8K\\audio'
+    Urbandataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+    Urban_train_dataset_path = 'D:\\UrbanSound8K\\UrbanSound8K\\audio'
     label_setting_UrBan = {"car_horn": 1, "dog_bark": 2, "siren": 4, "street_music": 5, "drilling": 5,
                            "air_conditioner": 5, "jachammer": 5}    # 새롭게 라벨링
     for index, row in Urbandataset.iterrows():
@@ -74,9 +74,9 @@ def UrBanDataset(train_set):    # wav파일 변환
     return train_set
 
 def AI_HubDataset(train_set):
-    Ai_Hub_dataset_path = 'E:\\도시소리'
+    Ai_Hub_dataset_path = 'D:\\도시소리'
     Ai_Hub_type_path = ['자동차', '이륜자동차', '동물']
-    Ai_Hub_labelset = 'E:\\교통소음'
+    Ai_Hub_labelset = 'D:\\교통소음'
     label_setting_aihub = {"차량경적": 1, "차량주행음": 5, "차량사이렌": 4, "이륜차경적": 1, "이륜차주행음": 5, "개": 2, "고양이": 3} # 새롭게 라벨링
     for s in Ai_Hub_type_path:
         path = Ai_Hub_labelset + '\\' + str(s)
@@ -107,9 +107,9 @@ def AI_HubDataset(train_set):
     return train_set
 
 def AI_HubAlertDataset(train_set):
-    AI_HubAlert_dataset_path = 'E:\\경보소리'
+    AI_HubAlert_dataset_path = 'D:\\경보소리'
     AI_HubAlert_type_path = ["도난경보", "화재경보", "비상경보"]
-    AI_HubAlert_label_path = "E:\\경보소리라벨링\\경보"
+    AI_HubAlert_label_path = "D:\\경보소리라벨링\\경보"
     label_setting_ai_hubAleart = {"도난경보 소리": 8, "도난 경보음 소리": 8, "침입감지 경보 소리": 8, "화재경보 소리":7, "화재 경보 소리": 7,
                                   "가스누설 화재경보 소리": 7, "자동차 경적 소리": 1, "비상경보 소리": 6, "철도 건널목 신호음 소리": 6, "민방위훈련 사이렌 소리": 6, "공습경보 소리" : 6} # 새롭게 라벨링
     for s in AI_HubAlert_type_path:
@@ -177,6 +177,7 @@ train_x = np.array(train_data_set.data)
 trains_mfcc = extract_feature(train_x, train_data_set.label, isCheck)   #fft된 데이터를 mfcc를 적용시켜 벡터화 시킴
 trains_mfcc = np.array(trains_mfcc)
 trains_mfcc = trains_mfcc.reshape(-1, trains_mfcc.shape[1], trains_mfcc.shape[2], 1)
+print(trains_mfcc.shape)
 train_X = trains_mfcc
 train_y = np.array(train_data_set.label)
 for i in range(len(train_y)):   #학습을 위해 라벨링 데이터도 numpy형태로 변환
@@ -267,19 +268,19 @@ class CNNclassification(torch.nn.Module): # 4중 layer로 구현
          return out
 from torch.autograd import Variable
 class LSTMclassification(torch.nn.Module):
-    def __init__(self, input_size, hidden_size, num_layer):
+    def __init__(self, input_size, hidden_size, num_layers):
         super(LSTMclassification, self).__init__()
-        self.num_layer = num_layer;
+        self.num_layers = num_layers
         self.input_size = input_size
         self.hidden_size = hidden_size
 
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layer=num_layer,batch_first=True)
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,batch_first=True)
         self.fc_1 = nn.Linear(hidden_size, 128)
         self.fc = nn.Linear(128, 8)
         self.relu = nn.ReLU()
     def forward(self, x):
-        h_0 = Variable(torch.zeros(self.num_layer, x.size(0), self.hidden_size))
-        c_0 = Variable(torch.zeros(self.num_layer, x.size(0), self.hidden_size))
+        h_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size))
+        c_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size))
         output, (hn,cn) = self.lstm(x,(h_0,c_0))
         hn = hn.view(-1,self.hidden_size)
         out = self.relu(hn)
@@ -363,6 +364,12 @@ fold2_model = CNNclassification().to(device)
 fold3_model = CNNclassification().to(device)
 fold4_model = CNNclassification().to(device)
 model_list = [fold0_model, fold1_model, fold2_model, fold3_model, fold4_model]
+fold0_lstm_model = LSTMclassification(120, 2, 1).to(device)
+fold1_lstm_model = LSTMclassification(120, 2, 1).to(device)
+fold2_lstm_model = LSTMclassification(120, 2, 1).to(device)
+fold3_lstm_model = LSTMclassification(120, 2, 1).to(device)
+fold4_lstm_model = LSTMclassification(120, 2, 1).to(device)
+lstm_model_list = [fold0_lstm_model, fold1_lstm_model, fold2_lstm_model, fold3_lstm_model, fold4_lstm_model]
 result = {}
 for fold, (train_index, vail_index) in enumerate(skf.split(train_X, test_y)):
     print(f"Fold {fold}")
@@ -401,7 +408,7 @@ for fold, (train_index, vail_index) in enumerate(skf.split(train_X, test_y)):
     train_test_loder = DataLoader(train_data_test_set, batch_size=batch_size, shuffle=True)
     vail_data_test_set = Custom_Dataset(vail_data_test_X, vail_data_test_y)
     vail_test_loder = DataLoader(vail_data_test_set, batch_size=batch_size, shuffle=False)
-    acc = train(model_list[fold], optimizer, train_test_loder, vail_test_loder, scheduler, device, fold)
+    acc = train(lstm_model_list[fold], optimizer, train_test_loder, vail_test_loder, scheduler, device, fold)
 
     result[fold] = acc
 
