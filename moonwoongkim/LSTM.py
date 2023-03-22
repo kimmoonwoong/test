@@ -11,12 +11,13 @@ import pickle
 import sklearn
 from torch.utils.data import Dataset, DataLoader
 import json
+import tensorflow as tf
 from sklearn.model_selection import StratifiedKFold
 import wandb
 
-dataset = pd.read_csv('D:\\FSDKaggle2018.meta\\train_post_competition.csv')
+dataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\FSDKaggle2018.meta\\train_post_competition.csv')
 testdataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\test_post_competition_scoring_clips.csv')
-Urbondataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+Urbondataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
 urbanlabelsetting = {}
 filename_list = []
 label_list = []
@@ -25,10 +26,9 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-
 def FSDDataset(train_set):          # wav데이터 변환
-    label_setting_fsd = {"Bark": 2, "Meow": 3, "Bus": 5, "Squeak": 5, "Knock": 5} # 새롭게 클래스 라벨링
-    FSD_train_dataset_path = 'D:\\FSDKaggle2018.audio_train'
+    label_setting_fsd = {"Bark": 2} # 새롭게 클래스 라벨링
+    FSD_train_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\FSDKaggle2018.audio_train'
     data_lock_count = {} # 테스트용으로 각 라벨마다 100개씩 데이터를 뽑아 냄
     for index, row in dataset.iterrows():
         file_name = FSD_train_dataset_path + '\\' + str(row["fname"])
@@ -50,10 +50,9 @@ def FSDDataset(train_set):          # wav데이터 변환
 
 
 def UrBanDataset(train_set):    # wav파일 변환
-    Urbandataset = pd.read_csv('D:\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
-    Urban_train_dataset_path = 'D:\\UrbanSound8K\\UrbanSound8K\\audio'
-    label_setting_UrBan = {"car_horn": 1, "dog_bark": 2, "siren": 4, "street_music": 5, "drilling": 5,
-                           "air_conditioner": 5, "jachammer": 5}    # 새롭게 라벨링
+    Urbandataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+    Urban_train_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\UrbanSound8K\\UrbanSound8K\\audio'
+    label_setting_UrBan = {"car_horn": 1, "dog_bark": 2, "siren": 3}    # 새롭게 라벨링
     for index, row in Urbandataset.iterrows():
         class_label = row['class']
         if class_label in label_setting_UrBan:  # 우리가 쓸 데이터를 골라내는 작업
@@ -61,7 +60,7 @@ def UrBanDataset(train_set):    # wav파일 변환
             fold_number = row['fold']
             file_path = Urban_train_dataset_path + '\\' + 'fold' + str(fold_number) + '\\' + file_name
             label_check = []        # 나중에 학습할 때 loss계산을 위해 라벨링 형태를 맞춰줌
-            for j in range(0, 8):
+            for j in range(0, 6):
                 if j + 1 == label_setting_UrBan[class_label]:
                     label_check.append(1)
                 else:
@@ -74,10 +73,10 @@ def UrBanDataset(train_set):    # wav파일 변환
     return train_set
 
 def AI_HubDataset(train_set):
-    Ai_Hub_dataset_path = 'D:\\도시소리'
+    Ai_Hub_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\도시소리'
     Ai_Hub_type_path = ['자동차', '이륜자동차', '동물']
-    Ai_Hub_labelset = 'D:\\교통소음'
-    label_setting_aihub = {"차량경적": 1, "차량주행음": 5, "차량사이렌": 4, "이륜차경적": 1, "이륜차주행음": 5, "개": 2, "고양이": 3} # 새롭게 라벨링
+    Ai_Hub_labelset = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\교통소음'
+    label_setting_aihub = {"차량경적": 1, "차량사이렌": 3, "이륜차경적": 1, "개": 2} # 새롭게 라벨링
     for s in Ai_Hub_type_path:
         path = Ai_Hub_labelset + '\\' + str(s)
         filelist = os.listdir(path)
@@ -94,7 +93,7 @@ def AI_HubDataset(train_set):
                 class_label = str(jsondata["annotations"][0]["categories"]["category_03"])
                 if class_label in label_setting_aihub: # 우리가 쓸 데이터를 뽑아 냄
                     label_check = []    # 나중에 학습할 때 loss계산을 위해 라벨링 형태를 맞춰줌
-                    for j in range(0, 8):
+                    for j in range(0, 6):
                         if j + 1 == label_setting_aihub[class_label]:
                             label_check.append(1)
                         else:
@@ -107,11 +106,11 @@ def AI_HubDataset(train_set):
     return train_set
 
 def AI_HubAlertDataset(train_set):
-    AI_HubAlert_dataset_path = 'D:\\경보소리'
+    AI_HubAlert_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\경보소리'
     AI_HubAlert_type_path = ["도난경보", "화재경보", "비상경보"]
-    AI_HubAlert_label_path = "D:\\경보소리라벨링\\경보"
-    label_setting_ai_hubAleart = {"도난경보 소리": 8, "도난 경보음 소리": 8, "침입감지 경보 소리": 8, "화재경보 소리":7, "화재 경보 소리": 7,
-                                  "가스누설 화재경보 소리": 7, "자동차 경적 소리": 1, "비상경보 소리": 6, "철도 건널목 신호음 소리": 6, "민방위훈련 사이렌 소리": 6, "공습경보 소리" : 6} # 새롭게 라벨링
+    AI_HubAlert_label_path = "C:\\Users\\user\\OneDrive - koreatech.ac.kr\\경보소리라벨링\\경보"
+    label_setting_ai_hubAleart = {"도난경보 소리": 6, "도난 경보음 소리": 6, "침입감지 경보 소리": 6, "화재경보 소리":5, "화재 경보 소리": 5,
+                                  "가스누설 화재경보 소리": 5, "자동차 경적 소리": 1, "비상경보 소리": 4, "철도 건널목 신호음 소리": 4, "민방위훈련 사이렌 소리": 4, "공습경보 소리" : 4} # 새롭게 라벨링
     for s in AI_HubAlert_type_path:
         print(s)
         path = AI_HubAlert_label_path + "\\" + str(s)
@@ -126,7 +125,7 @@ def AI_HubAlertDataset(train_set):
                 class_label = str(jsondata["LabelDataInfo"]["Desc"])
 
                 label_check = []        # 나중에 학습할 때 loss계산을 위해 라벨링 형태를 맞춰줌
-                for j in range(0, 8):
+                for j in range(0, 6):
                     if j + 1 == label_setting_ai_hubAleart[class_label]:
                         label_check.append(1)
                     else:
@@ -150,7 +149,7 @@ def extract_feature(data, label, isCheck):      # 위에서 변환한 데이터�
             mfcc = mfcc[:, 1100:]
         else:
             index += 1
-        mfcc = slice(mfcc, 80)     # 설정한 길이에 맞게 맞춰주는 작업
+        mfcc = slice(mfcc, 96)     # 설정한 길이에 맞게 맞춰주는 작업
 
         delta_mfcc = librosa.feature.delta(mfcc)
         delta_mfcc2 = librosa.feature.delta(mfcc, order=2)
@@ -175,8 +174,9 @@ train_data_set = pd.DataFrame(train_data_set, columns=['data', 'label'])
 # f.close()
 train_x = np.array(train_data_set.data)
 trains_mfcc = extract_feature(train_x, train_data_set.label, isCheck)   #fft된 데이터를 mfcc를 적용시켜 벡터화 시킴
+print(len(trains_mfcc))
 trains_mfcc = np.array(trains_mfcc)
-trains_mfcc = trains_mfcc.reshape(trains_mfcc.shape[0], trains_mfcc.shape[1], -1)
+trains_mfcc = trains_mfcc.reshape(-1, trains_mfcc.shape[1], trains_mfcc.shape[2], 1)
 print(trains_mfcc.shape)
 train_X = trains_mfcc
 train_y = np.array(train_data_set.label)
@@ -225,31 +225,76 @@ num_epochs = 60 # 학습을 num_epochs만큼 돌림
 batch_size = 6   # 배치 사이즈 설정
 # 학습을 위한 데이터로 변환(torch.tensor)
 test_dataset = Custom_Dataset(X=test_data_X, y=None, train_mode=False)
+
 test_loder = DataLoader(test_dataset, batch_size=6, shuffle=False)
 import torch.nn
 import torch.nn as nn
 
+# CNN 모델
+class CNNclassification(torch.nn.Module): # 4중 layer로 구현
+     def __init__(self):
+         super(CNNclassification, self).__init__()
+         self.layer1 = torch.nn.Sequential(
+             nn.Conv2d(120, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.ReLU(),  # activation function
+             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+
+         self.layer2 = torch.nn.Sequential(
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+
+         self.layer3 = torch.nn.Sequential(
+             nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.ReLU(),  # activation function
+             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+
+         self.layer4 = torch.nn.Sequential(
+             nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+             nn.ReLU(),  # activation function
+             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
+
+         self.layer5 = torch.nn.Sequential(
+             nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),
+             nn.ReLU(),
+             nn.MaxPool2d(kernel_size=2, stride=2)
+         )
+         self.fc_layer = nn.Sequential(
+             nn.Linear(200 * 3 * 1, 6)  # fully connected layer(ouput layer)
+         )
+
+     def forward(self, x):
+
+         x = self.layer1(x)
+         x = self.layer2(x)
+         x = self.layer3(x)
+         x = self.layer4(x)
+         x = self.layer5(x)
+         x = torch.flatten(x, start_dim=1)
+         out = self.fc_layer(x)
+         return out
 from torch.autograd import Variable
 class LSTMclassification(torch.nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers):
+    def __init__(self, input_size, hidden_size, num_layer):
         super(LSTMclassification, self).__init__()
-        self.num_layers = num_layers
+        self.num_layer = num_layer
         self.input_size = input_size
         self.hidden_size = hidden_size
 
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,batch_first=True)
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layer, batch_first=True)
         self.fc_1 = nn.Linear(hidden_size, 128)
         self.fc = nn.Linear(128, 8)
         self.relu = nn.ReLU()
     def forward(self, x):
-        h_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size).cuda())
-        c_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size).cuda())
+        h_0 = Variable(torch.zeros(self.num_layer, x.size(0), self.hidden_size))
+        c_0 = Variable(torch.zeros(self.num_layer, x.size(0), self.hidden_size))
         output, (hn,cn) = self.lstm(x,(h_0,c_0))
-        hn = hn.view(-1,self.hidden_size)
+        hn = hn.view(-1, self.hidden_size)
         out = self.relu(hn)
         out = self.fc_1(out)
         out = self.relu(out)
         out = self.fc(out)
+        print(out)
         return out
 
 import torch.optim as optim
@@ -321,12 +366,19 @@ skf.get_n_splits(train_X, test_y)
 print(skf)
 train_X = np.array(train_X)
 
-fold0_lstm_model = LSTMclassification(80, 2, 1).to(device)
-fold1_lstm_model = LSTMclassification(80, 2, 1).to(device)
-fold2_lstm_model = LSTMclassification(80, 2, 1).to(device)
-fold3_lstm_model = LSTMclassification(80, 2, 1).to(device)
-fold4_lstm_model = LSTMclassification(80, 2, 1).to(device)
-lstm_model_list = [fold0_lstm_model, fold1_lstm_model, fold2_lstm_model, fold3_lstm_model, fold4_lstm_model]
+fold0_model = CNNclassification().to(device)
+fold1_model = CNNclassification().to(device)
+fold2_model = CNNclassification().to(device)
+fold3_model = CNNclassification().to(device)
+fold4_model = CNNclassification().to(device)
+model_list = [fold0_model, fold1_model, fold2_model, fold3_model, fold4_model]
+lstm_fold0_model = LSTMclassification(80, 2, 1).to(device)
+lstm_fold1_model = LSTMclassification(80, 2, 1).to(device)
+lstm_fold2_model = LSTMclassification(80, 2, 1).to(device)
+lstm_fold3_model = LSTMclassification(80, 2, 1).to(device)
+lstm_fold4_model = LSTMclassification(80, 2, 1).to(device)
+lstm_model_list = [lstm_fold0_model, lstm_fold1_model, lstm_fold2_model, lstm_fold3_model, lstm_fold4_model]
+
 result = {}
 for fold, (train_index, vail_index) in enumerate(skf.split(train_X, test_y)):
     print(f"Fold {fold}")
@@ -336,7 +388,7 @@ for fold, (train_index, vail_index) in enumerate(skf.split(train_X, test_y)):
     for i in train_index:
         train_data_test_X.append(train_X[i])
         new_label = []
-        for label_index in range(0,8):
+        for label_index in range(0,6):
             if label_index == test_y[i]:
                 new_label.append(1)
             else:
@@ -349,7 +401,7 @@ for fold, (train_index, vail_index) in enumerate(skf.split(train_X, test_y)):
     for i in vail_index:
         vail_data_test_X.append(train_X[i])
         new_label = []
-        for label_index in range(0,8):
+        for label_index in range(0,6):
             if label_index == test_y[i]:
                 new_label.append(1)
             else:
@@ -359,13 +411,13 @@ for fold, (train_index, vail_index) in enumerate(skf.split(train_X, test_y)):
     print(len(train_index), len(vail_index))
     torch.cuda.empty_cache()
     criterion = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.SGD(params=lstm_model_list[fold].parameters(), lr=1e-3)
+    optimizer = torch.optim.SGD(params=model_list[fold].parameters(), lr=1e-3)
     scheduler = None
     train_data_test_set = Custom_Dataset(train_data_test_X,train_data_test_y)
     train_test_loder = DataLoader(train_data_test_set, batch_size=batch_size, shuffle=True)
     vail_data_test_set = Custom_Dataset(vail_data_test_X, vail_data_test_y)
     vail_test_loder = DataLoader(vail_data_test_set, batch_size=batch_size, shuffle=False)
-    acc = train(lstm_model_list[fold], optimizer, train_test_loder, vail_test_loder, scheduler, device, fold)
+    acc = train(model_list[fold], optimizer, train_test_loder, vail_test_loder, scheduler, device, fold)
 
     result[fold] = acc
 
