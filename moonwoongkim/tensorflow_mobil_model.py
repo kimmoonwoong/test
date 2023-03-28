@@ -177,15 +177,14 @@ model.add(layers.Dropout(0.2))
 model.add(layers.Conv2D(kernel_size=2, filters=32, activation="relu"))
 model.add(layers.MaxPooling2D(pool_size=2))
 model.add(layers.Dropout(0.2))
-model.add(layers.Conv2D(kernel_size=2, filters=64, activation="relu"))
-model.add(layers.MaxPooling2D(pool_size=2))
-model.add(layers.Dropout(0.2))
-model.add(layers.Conv2D(kernel_size=2, filters=128, activation="relu"))
-model.add(layers.MaxPooling2D(pool_size=2))
-model.add(layers.Dropout(0.2))
-
 model.add(layers.GlobalAveragePooling2D())
 model.add(keras.layers.Dense(units=2, activation="softmax"))
+model.add(layers.Conv2D(input_shape=(120,80,1), filters=64, kernel_size=2, activation="relu"))
+model.add(layers.MaxPooling2D(pool_size=2))
+model.add(layers.Dropout(0.2))
+model.add(layers.Conv2D(input_shape=(120,80,1), filters=128, kernel_size=2, activation="relu"))
+model.add(layers.MaxPooling2D(pool_size=2))
+model.add(layers.Dropout(0.2))
 
 model.summary()
 vail_X = train_X[34745:]
@@ -197,3 +196,5 @@ num_epoc = 100
 optimizer = keras.optimizers.Adam(learning_rate=0.001)
 model.compile(loss="categorical_crossentropy", optimizer=optimizer, metrics=["acc"])
 history = model.fit(train_X, train_y, batch_size=batch_size, epochs=num_epoc)
+
+model.save("C:\\Users\\user\\Desktop\\ai\\mobail_model")
