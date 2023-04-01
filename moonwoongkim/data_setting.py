@@ -20,13 +20,17 @@ Urbondataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\UrbanSo
 urbanlabelsetting = {}
 filename_list = []
 label_list = []
-
+train_y = []
+train_X = []
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))  # 데이터의 길이를 설정한 길이에 맞게 맞춰줌
 
-def FSDDataset(train_set):          # wav데이터 변환
+
+
+def FSDDataset():          # wav데이터 변환
     label_setting_fsd = {"Bark": 1} # 새롭게 클래스 라벨링
     FSD_train_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\FSDKaggle2018.audio_train'
     data_lock_count = {} # 테스트용으로 각 라벨마다 100개씩 데이터를 뽑아 냄
@@ -42,14 +46,19 @@ def FSDDataset(train_set):          # wav데이터 변환
                 else:
                     label_check.append(0)
             data, sr = librosa.load(file_name, sr=22050)    # librosa 모델을 사용하여 fft
-            train_set.append([data, label_check])   # 데이터 저장
+            mfcc = librosa.feature.mfcc(y = data, sr = 22050, n_mfcc=40, n_fft=400)
+            mfcc = slice(mfcc, 80)
 
-
+            delta_mfcc = librosa.feature.delta(mfcc)
+            delta_mfcc2 = librosa.feature.delta(mfcc, order=2)
+            features = np.concatenate([mfcc, delta_mfcc, delta_mfcc2], axis=0)
+            train_X.append(features)
+            train_y.append(label_check)
+    print(len(train_X), len(train_y))
     print("데이터 생성 완료")
-    return train_set
 
 
-def UrBanDataset(train_set):    # wav파일 변환
+def UrBanDataset():    # wav파일 변환
     Urbandataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
     Urban_train_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\UrbanSound8K\\UrbanSound8K\\audio'
     label_setting_UrBan = {"car_horn": 1, "dog_bark": 2, "siren": 3}    # 새롭게 라벨링
@@ -66,13 +75,19 @@ def UrBanDataset(train_set):    # wav파일 변환
                 else:
                     label_check.append(0)
             data, sr = librosa.load(file_path, sr=22050) # librosa 모델을 사용하여 fft
-            train_set.append([data, label_check])   # 데이터 저장
+            mfcc = librosa.feature.mfcc(y=data, sr=22050, n_mfcc=40, n_fft=400)
+            mfcc = slice(mfcc, 80)
+
+            delta_mfcc = librosa.feature.delta(mfcc)
+            delta_mfcc2 = librosa.feature.delta(mfcc, order=2)
+            features = np.concatenate([mfcc, delta_mfcc, delta_mfcc2], axis=0)
+            train_X.append(features)
+            train_y.append(label_check)
+    print(len(train_X), len(train_y))
 
     print("데이터 생성 완료")
 
-    return train_set
-
-def AI_HubDataset(train_set):
+def AI_HubDataset():
     Ai_Hub_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\도시소리'
     Ai_Hub_type_path = ['자동차', '이륜자동차', '동물']
     Ai_Hub_labelset = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\교통소음'
@@ -99,13 +114,19 @@ def AI_HubDataset(train_set):
                         else:
                             label_check.append(0)
                     data, sr = librosa.load(data_file_path, sr=22050)   # librosa 모델을 사용하여 fft
-                    train_set.append([data, label_check])   # 데이터 저장
+                    mfcc = librosa.feature.mfcc(y=data, sr=22050, n_mfcc=40, n_fft=400)
+                    mfcc = slice(mfcc, 80)
 
+                    delta_mfcc = librosa.feature.delta(mfcc)
+                    delta_mfcc2 = librosa.feature.delta(mfcc, order=2)
+                    features = np.concatenate([mfcc, delta_mfcc, delta_mfcc2], axis=0)
+                    train_X.append(features)
+                    train_y.append(label_check)
 
+    print(len(train_X), len(train_y))
     print("데이터 생성 완료")
-    return train_set
 
-def AI_HubAlertDataset(train_set):
+def AI_HubAlertDataset():
     AI_HubAlert_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\경보소리'
     AI_HubAlert_type_path = ["도난경보", "화재경보", "비상경보"]
     AI_HubAlert_label_path = "C:\\Users\\user\\OneDrive - koreatech.ac.kr\\경보소리라벨링\\경보"
@@ -131,20 +152,24 @@ def AI_HubAlertDataset(train_set):
                     else:
                         label_check.append(0)
                 data, sr = librosa.load(data_file_path, sr=22050)       # librosa 모델을 사용하여 fft
-                for i in range(0,10):
-                    train_set.append([data, label_check])                   # 데이터 저장
+                mfcc = librosa.feature.mfcc(y=data, sr=22050, n_mfcc=40, n_fft=400)
+                mfcc = mfcc[:, 1100:]
+                mfcc = slice(mfcc, 80)
+                delta_mfcc = librosa.feature.delta(mfcc)
+                delta_mfcc2 = librosa.feature.delta(mfcc, order=2)
+                features = np.concatenate([mfcc, delta_mfcc, delta_mfcc2], axis=0)
+                train_X.append(features)
+                train_y.append(label_check)
+    print(len(train_X), len(train_y))
     print("데이터 생성 완료")
-    return train_set
 
-def AI_HubAlertsoundArgumentDataset(train_set):
+def AI_HubAlertsoundArgumentDataset():
     AI_HubAlert_dataset_path = 'E:\\경보소리데이터변환'
     AI_HubAlert_type_path = ["도난경보", "화재경보", "비상경보"]
     AI_HubAlert_label_path = "C:\\Users\\user\\OneDrive - koreatech.ac.kr\\경보소리라벨링\\경보"
     label_setting_ai_hubAleart = {"도난경보 소리": 6, "도난 경보음 소리": 6, "침입감지 경보 소리": 6, "화재경보 소리":5, "화재 경보 소리": 5,
                                   "가스누설 화재경보 소리": 5, "자동차 경적 소리": 1, "비상경보 소리": 4, "철도 건널목 신호음 소리": 4, "민방위훈련 사이렌 소리": 4, "공습경보 소리" : 4} # 새롭게 라벨링
     argumentype = ["_pitch_down", '_pitch_up', '_speed_down', "_speed_up"]
-    speed_down = []
-    speed_up = []
     for s in AI_HubAlert_type_path:
         print(s)
         path = AI_HubAlert_label_path + "\\" + str(s)
@@ -166,69 +191,38 @@ def AI_HubAlertsoundArgumentDataset(train_set):
                         else:
                             label_check.append(0)
                     data, sr = librosa.load(data_file_path, sr=22050)       # librosa 모델을 사용하여 fft
+                    mfcc = librosa.feature.mfcc(y=data, sr=22050, n_mfcc=40, n_fft=400)
                     if types == '_speed_up':
-                        speed_up.append([data, label_check])
+                        mfcc = mfcc[:, 1400:]
                     elif types == '_speed_down':
-                        speed_down.append([data, label_check])
-                    else:
-                        train_set.append([data, label_check])                   # 데이터 저장
-    up_index = len(train_set)
-    for data in speed_up:
-        train_set.append(data)
-    down_index = len(train_set)
-    for data in speed_down:
-        train_set.append(data)
+                        mfcc = mfcc[:, 600:]
+
+                    mfcc = slice(mfcc, 80)
+                    delta_mfcc = librosa.feature.delta(mfcc)
+                    delta_mfcc2 = librosa.feature.delta(mfcc, order=2)
+                    features = np.concatenate([mfcc, delta_mfcc, delta_mfcc2], axis=0)
+                    train_X.append(features)
+                    train_y.append(label_check)
+    print(len(train_X), len(train_y))
     print("데이터 생성 완료")
-    return train_set, up_index, down_index
 train_data_label = []
 
 
-def extract_feature(data, isCheck, up_index, down_index):      # 위에서 변환한 데이터를 mfcc의 이용으로 소리 데이터를 벡터화 시킴( 벡터화 시킴으로써 CNN모델을 사용할 수 있게 됨 )
-    mfccs = []
-    slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))    # 데이터의 길이를 설정한 길이에 맞게 맞춰줌
-    index = 0           # 한 군데에서 가져온 데이터가 앞에 10가량이 무슨 소리인지 소개하는 소리이기에 짜르기 위해 그 데이터를 찾아냄
-    for i in data:
-        mfcc = librosa.feature.mfcc(y=i, sr=22050, n_mfcc=40, n_fft=400)    # mfcc를 통해 벡터화를 시킴
-        if index >= isCheck and index < up_index:            # 앞서 말한 데이터부터 10초가량을 짜름
-            mfcc = mfcc[:, 1100:]
-            index += 1
-        elif index >= up_index and index < down_index:
-            mfcc = mfcc[:, 600:]
-            index += 1
-        elif index >= down_index:
-            mfcc = mfcc[:, 1400:]
-        else:
-            index += 1
-        mfcc = slice(mfcc, 80)     # 설정한 길이에 맞게 맞춰주는 작업
-
-        delta_mfcc = librosa.feature.delta(mfcc)
-        delta_mfcc2 = librosa.feature.delta(mfcc, order=2)
-        features = np.concatenate([mfcc, delta_mfcc, delta_mfcc2], axis=0)
-        mfccs.append(features)          # 데이터 저장
-    return mfccs
-
-
 train_data_set = []     # wav를 fft시키는 작업
-train_data_set = FSDDataset(train_data_set)
-train_data_set = UrBanDataset(train_data_set)
-train_data_set = AI_HubDataset(train_data_set)
-isCheck = len(train_data_set)
-train_data_set = AI_HubAlertDataset(train_data_set)
-train_data_set, up_index, down_indx = AI_HubAlertsoundArgumentDataset(train_data_set)
-print(len(train_data_set))
-train_data_set = pd.DataFrame(train_data_set, columns=['data', 'label'])
+FSDDataset()
+UrBanDataset()
+AI_HubDataset()
+AI_HubAlertDataset()
+AI_HubAlertsoundArgumentDataset()
 # f = open("data_setcheck.csv", "w")
 #
 # for i in range(len(train_data_set)):
 #     write = csv.writer(f)
 #     write.writerows(str(train_data_set.data[i].tolist()))
 # f.close()
-train_x = np.array(train_data_set.data)
-trains_mfcc = extract_feature(train_x, isCheck, up_index, down_indx)   #fft된 데이터를 mfcc를 적용시켜 벡터화 시킴
-trains_mfcc = np.array(trains_mfcc)
-trains_mfcc = trains_mfcc.reshape(-1, trains_mfcc.shape[1], trains_mfcc.shape[2], 1)
-train_X = trains_mfcc
-train_y = np.array(train_data_set.label)
+train_X = np.array(train_X)
+train_X = train_X.reshape(-1, train_X.shape[1], train_X.shape[2], 1)
+train_y = np.array(train_y)
 for i in range(len(train_y)):   #학습을 위해 라벨링 데이터도 numpy형태로 변환
     train_y[i] = np.array(train_y[i])
 

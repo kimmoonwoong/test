@@ -1,19 +1,20 @@
-import csv
-import json
-import torch
+import keras
+import tensorflow as tf
 import pandas as pd
-import torch.nn as nn
 import numpy as np
 import librosa
+import librosa.display
 import os
-import glob
-import pickle
-import sklearn
-from torch.utils.data import Dataset, DataLoader
 import json
-import tensorflow as tf
-from sklearn.model_selection import StratifiedKFold
-import wandb
+import numpy as np
+import matplotlib as plt
+import matplotlib.pyplot as plts
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D, GlobalAveragePooling2D
+from keras.optimizers import Adam
+from keras.utils import np_utils
+from sklearn import metrics
 
 dataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\FSDKaggle2018.meta\\train_post_competition.csv')
 testdataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\test_post_competition_scoring_clips.csv')
@@ -22,7 +23,6 @@ urbanlabelsetting = {}
 filename_list = []
 label_list = []
 
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -196,280 +196,33 @@ test_data_y = train_y[len(train_X) - 12:]
 
 train_X = train_X[:len(train_X) - 12]
 train_y = train_y[:len(train_y) - 12]
+from keras import layers
+from keras.layers import LSTM
+model = keras.Sequential()
+model.add(layers.LSTM(256, input_shape=(120, 1), return_sequences=False))
+model.add(Dense(512, activation="relu"))
+model.add(Dropout(0.2))
+model.add(Dense(512, activation="relu"))
+model.add(Dropout(0.2))
+model.add(Dense(512, activation="relu"))
+model.add(Dropout(0.2))
+model.add(Dense(512, activation="relu"))
+model.add(Dropout(0.2))
+model.add(Dense(6, activation="softmax"))
 
-class Custom_Dataset(Dataset):
-    def __init__(self, X, y, train_mode=True, transforms=None):
-        self.X = X
-        self.y = y
-        self.train_mode = train_mode
-        self.transforms = transforms
+model.summary()
+batch_size = 6
+num_epoc = 100
 
-    def __getitem__(self, index):
-        X = self.X[index]
+vail_X = train_X[34745:]
+vail_y = train_y[34745:]
+train_X = train_X[:34745]
+train_y = train_y[:34745]
 
-        if self.transforms is not None:
-            X = self.transforms(X)
+optimizer = keras.optimizers.Adam(learning_rate=0.001)
+model.compile(loss="categorical_crossentropy", optimizer=optimizer, metrics=["acc"])
+history = model.fit(train_X, train_y, batch_size=batch_size, epochs=num_epoc)
 
-        if self.train_mode:
-            y = self.y[index]
-            return X, y
-        else:
-            return X
-
-    def __len__(self):
-        return len(self.X)
-
-
-from torch.utils.data.dataset import random_split
-num_epochs = 60 # 학습을 num_epochs만큼 돌림
-batch_size = 6   # 배치 사이즈 설정
-# 학습을 위한 데이터로 변환(torch.tensor)
-test_dataset = Custom_Dataset(X=test_data_X, y=None, train_mode=False)
-
-test_loder = DataLoader(test_dataset, batch_size=6, shuffle=False)
-import torch.nn
-import torch.nn as nn
-
-# CNN 모델
-class CNNclassification(torch.nn.Module): # 4중 layer로 구현
-     def __init__(self):
-         super(CNNclassification, self).__init__()
-         self.layer1 = torch.nn.Sequential(
-             nn.Conv2d(120, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
-             nn.ReLU(),  # activation function
-             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
-
-         self.layer2 = torch.nn.Sequential(
-            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
-            nn.ReLU(),  # activation function
-            nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
-
-         self.layer3 = torch.nn.Sequential(
-             nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
-             nn.ReLU(),  # activation function
-             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
-
-         self.layer4 = torch.nn.Sequential(
-             nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
-             nn.ReLU(),  # activation function
-             nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
-
-         self.layer5 = torch.nn.Sequential(
-             nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),
-             nn.ReLU(),
-             nn.MaxPool2d(kernel_size=2, stride=2)
-         )
-         self.fc_layer = nn.Sequential(
-             nn.Linear(200 * 3 * 1, 6)  # fully connected layer(ouput layer)
-         )
-
-     def forward(self, x):
-
-         x = self.layer1(x)
-         x = self.layer2(x)
-         x = self.layer3(x)
-         x = self.layer4(x)
-         x = self.layer5(x)
-         x = torch.flatten(x, start_dim=1)
-         out = self.fc_layer(x)
-         return out
-from torch.autograd import Variable
-class LSTMclassification(torch.nn.Module):
-    def __init__(self, input_size, hidden_size, num_layer):
-        super(LSTMclassification, self).__init__()
-        self.num_layer = num_layer
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layer, batch_first=True)
-        self.fc_1 = nn.Linear(hidden_size, 128)
-        self.fc = nn.Linear(128, 8)
-        self.relu = nn.ReLU()
-    def forward(self, x):
-        h_0 = Variable(torch.zeros(self.num_layer, x.size(0), self.hidden_size))
-        c_0 = Variable(torch.zeros(self.num_layer, x.size(0), self.hidden_size))
-        output, (hn,cn) = self.lstm(x,(h_0,c_0))
-        hn = hn.view(-1, self.hidden_size)
-        out = self.relu(hn)
-        out = self.fc_1(out)
-        out = self.relu(out)
-        out = self.fc(out)
-        print(out)
-        return out
-
-import torch.optim as optim
-
-
-
-from tqdm.auto import tqdm
-
-def train(model, optimizer, train_loaders, vail_loaders, scheduler, device, fold):   # 학습
-    best_acc = 0
-    for epoch in range(1, num_epochs):  # 에포크 설정
-        model.train()  # 모델 학습
-        running_loss = 0.0
-        for wav, label in tqdm(iter(train_loaders)):
-            wav, label = wav.to(device).float(), label.to(device).long()  # 배치 데이터
-            optimizer.zero_grad()  # 배치마다 optimizer 초기화
-            # Data -> Model -> Output
-            logit = model(wav)  # 예측값 산출
-            loss = criterion(logit, torch.max(label, 1)[1])  # 손실함수 계산
-            # 역전파
-            loss.backward()  # 손실함수 기준 역전파
-            optimizer.step()  # 가중치 최적화
-            running_loss += loss.item()
-
-        print('[%d] Train loss: %.10f' % (epoch, running_loss / len(train_loaders)))
-
-        if scheduler is not None:
-            scheduler.step()
-
-        # Validation set 평가
-        model.eval()  # evaluation 과정에서 사용하지 않아야 하는 layer들을 알아서 off 시키도록 하는 함수
-        vali_loss = 0.0
-        correct = 0
-
-        with torch.no_grad():  # 파라미터 업데이트 안하기 때문에 no_grad 사용
-            for wav, label in tqdm(iter(vail_loaders)):
-                wav, label = wav.to(device).float(), label.to(device).long()
-                logit = model(wav)
-                vali_loss += criterion(logit, torch.max(label, 1)[1])
-                pred = logit.argmax(dim=1, keepdim=True)  # 10개의 class중 가장 값이 높은 것을 예측 label로 추출
-                label = label.argmax(dim=1, keepdim=True)
-                correct += pred.eq(label.view_as(pred)).sum().item()  # 예측값과 실제값이 맞으면 1 아니면 0으로 합산
-        vali_acc = 100 * correct / len(vail_loaders.dataset)
-        print('Vail set: Loss: {:.4f}, Accuracy: {}/{} ( {:.0f}%)\n'.format(vali_loss / len(vail_loaders), correct,
-                                                                            len(vail_loaders.dataset),
-                                                                            100 * correct / len(vail_loaders.dataset)))
-        acc = 100 * correct / len(vail_loaders.dataset)
-        # 베스트 모델 저장
-        if best_acc < vali_acc:
-            best_acc = vali_acc
-            torch.save(model.state_dict(),
-                       'C:\\Users\\user\\Desktop\\ai\\best_model' + str(fold) + ".pt")  # 이 디렉토리에 best_model.pth을 저장
-            print('Model Saved.')
-
-    return best_acc
-
-
-
-test_y = []
-for i in train_y:
-    for j in range(0, len(i)):
-        if i[j] == 1:
-            test_y.append(j)
-            break
-
-test_y = np.array(test_y)
-skf = StratifiedKFold()
-skf.get_n_splits(train_X, test_y)
-print(skf)
-train_X = np.array(train_X)
-
-fold0_model = CNNclassification().to(device)
-fold1_model = CNNclassification().to(device)
-fold2_model = CNNclassification().to(device)
-fold3_model = CNNclassification().to(device)
-fold4_model = CNNclassification().to(device)
-model_list = [fold0_model, fold1_model, fold2_model, fold3_model, fold4_model]
-lstm_fold0_model = LSTMclassification(80, 2, 1).to(device)
-lstm_fold1_model = LSTMclassification(80, 2, 1).to(device)
-lstm_fold2_model = LSTMclassification(80, 2, 1).to(device)
-lstm_fold3_model = LSTMclassification(80, 2, 1).to(device)
-lstm_fold4_model = LSTMclassification(80, 2, 1).to(device)
-lstm_model_list = [lstm_fold0_model, lstm_fold1_model, lstm_fold2_model, lstm_fold3_model, lstm_fold4_model]
-
-result = {}
-for fold, (train_index, vail_index) in enumerate(skf.split(train_X, test_y)):
-    print(f"Fold {fold}")
-    print('------------------------------------------------')
-    train_data_test_X = []
-    train_data_test_y = []
-    for i in train_index:
-        train_data_test_X.append(train_X[i])
-        new_label = []
-        for label_index in range(0,6):
-            if label_index == test_y[i]:
-                new_label.append(1)
-            else:
-                new_label.append(0)
-        new_label = np.array(new_label)
-        train_data_test_y.append(new_label)
-
-    vail_data_test_X = []
-    vail_data_test_y = []
-    for i in vail_index:
-        vail_data_test_X.append(train_X[i])
-        new_label = []
-        for label_index in range(0,6):
-            if label_index == test_y[i]:
-                new_label.append(1)
-            else:
-                new_label.append(0)
-        new_label = np.array(new_label)
-        vail_data_test_y.append(new_label)
-    print(len(train_index), len(vail_index))
-    torch.cuda.empty_cache()
-    criterion = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.SGD(params=model_list[fold].parameters(), lr=1e-3)
-    scheduler = None
-    train_data_test_set = Custom_Dataset(train_data_test_X,train_data_test_y)
-    train_test_loder = DataLoader(train_data_test_set, batch_size=batch_size, shuffle=True)
-    vail_data_test_set = Custom_Dataset(vail_data_test_X, vail_data_test_y)
-    vail_test_loder = DataLoader(vail_data_test_set, batch_size=batch_size, shuffle=False)
-    acc = train(model_list[fold], optimizer, train_test_loder, vail_test_loder, scheduler, device, fold)
-
-    result[fold] = acc
-
-    print('Accuracy for fold %d: %d %%' % (fold, acc))
-    print('------------------------------------------------')
-
-
-for key, value in result.items():
-    print(f"Fold : {key} ACC : {value}")
-def prediction(model, predic_data, device):
-    predic_list = []
-    model.eval()
-    with torch.no_grad():
-        for wav in tqdm(iter(predic_data)):
-            wav = wav.to(device).float()
-            logit = model(wav)
-            pred = logit.argmax(dim = 1, keepdim = True)
-            predic_list.append(pred.tolist())
-    return predic_list
-
-import torch
-
-check_point = torch.load('C:\\Users\\user\\Desktop\\ai\\best_model0.pt', map_location=device)
-model = CNNclassification().to(device)
-model.load_state_dict(torch.load('C:\\Users\\user\\Desktop\\ai\\best_model0.pt', map_location=device))
-
-data_path = 'E:\\test'
-list = []
-slice = lambda a, i: a[:, 0:i] if a.shape[1] > i else np.hstack((a, np.zeros((a.shape[0], i - a.shape[1]))))    # 데이터의 길이를 설정한 길이에 맞게 맞춰줌
-
-file_list = os.listdir(data_path)
-index = []
-for file_name in file_list:
-    path = data_path + "\\" + file_name
-    data,sr = librosa.load(path, sr=22050)
-    test_mfcc = librosa.feature.mfcc(y=data, sr=22050, n_mfcc=40, n_fft=400)
-    print(test_mfcc.shape[1], int(test_mfcc.shape[1] / 160))
-    test_mfcc_prev = slice(test_mfcc, 80)     # 설정한 길이에 맞게 맞춰주는 작업
-    delta_mfcc = librosa.feature.delta(test_mfcc_prev)
-    delta_mfcc2 = librosa.feature.delta(test_mfcc_prev, order=2)
-    features = np.concatenate([test_mfcc_prev, delta_mfcc, delta_mfcc2], axis=0)
-    list.append(features)
-
-list = np.array(list)
-list = list.reshape(-1, list.shape[1], list.shape[2], 1)
-print(list.shape)
-test_da = Custom_Dataset(X=list, y=None, train_mode=False)
-test_lod = DataLoader(test_da, batch_size=batch_size, shuffle=False)
-preds = prediction(model, test_loder, device)
-print(preds)
-for i in test_data_y:
-    print(i.argmax(), end=" ")
-print()
-preds = prediction(model, test_lod,device)
-print(preds)
+model.save("C:\\Users\\user\\Desktop\\ai\\mobail_model_2layer")
+ans = model.evaluate(test_data_X, test_data_y, batch_size=6)
+print(ans)
