@@ -1,34 +1,34 @@
-import csv
-import json
-import torch
+import keras
+import tensorflow as tf
 import pandas as pd
-import torch.nn as nn
 import numpy as np
 import librosa
-import os
-import glob
-import pickle
-import sklearn
-from torch.utils.data import Dataset, DataLoader
-import json
-import tensorflow as tf
-from sklearn.model_selection import StratifiedKFold
-import wandb
 import librosa.display
-dataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\train_post_competition.csv')
-#testdataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta')
-#Urbondataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
+import os
+import json
+import numpy as np
+import matplotlib as plt
+import matplotlib.pyplot as plts
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D, GlobalAveragePooling2D
+from keras.optimizers import Adam
+from keras.utils import np_utils
+from sklearn import metrics
+
+dataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\FSDKaggle2018.meta\\train_post_competition.csv')
+testdataset = pd.read_csv('C:\\Users\\user\\Desktop\\FSDKaggle2018.meta\\test_post_competition_scoring_clips.csv')
+Urbondataset = pd.read_csv('C:\\Users\\user\\OneDrive - koreatech.ac.kr\\UrbanSound8K\\UrbanSound8K\\metadata\\UrbanSound8K.csv')
 urbanlabelsetting = {}
 filename_list = []
 label_list = []
 
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def FSDDataset(train_set):          # wav데이터 변환
     label_setting_fsd = {"Bark": 2} # 새롭게 클래스 라벨링
-    FSD_train_dataset_path = 'C:\\Users\\user\\Desktop\\FSDKaggle2018.audio_train'
+    FSD_train_dataset_path = 'C:\\Users\\user\\OneDrive - koreatech.ac.kr\\FSDKaggle2018.audio_train'
     data_lock_count = {} # 테스트용으로 각 라벨마다 100개씩 데이터를 뽑아 냄
     for index, row in dataset.iterrows():
         file_name = FSD_train_dataset_path + '\\' + str(row["fname"])
@@ -42,11 +42,7 @@ def FSDDataset(train_set):          # wav데이터 변환
                 else:
                     label_check.append(0)
             data, sr = librosa.load(file_name, sr=22050)    # librosa 모델을 사용하여 fft
-            librosa.display.waveshow(data)
-            mfcc = librosa.feature.mfcc(data, sr=22050, n_mfcc=40, n_fft=400)
-            librosa.display.specshow(mfcc)
             train_set.append([data, label_check])   # 데이터 저장
-            break
 
 
     print("데이터 생성 완료")
@@ -164,7 +160,6 @@ def extract_feature(data, label, isCheck):      # 위에서 변환한 데이터�
 
 train_data_set = []     # wav를 fft시키는 작업
 train_data_set = FSDDataset(train_data_set)
-print(train_data_set[0])
 train_data_set = UrBanDataset(train_data_set)
 train_data_set = AI_HubDataset(train_data_set)
 isCheck = len(train_data_set)
@@ -181,7 +176,7 @@ train_x = np.array(train_data_set.data)
 trains_mfcc = extract_feature(train_x, train_data_set.label, isCheck)   #fft된 데이터를 mfcc를 적용시켜 벡터화 시킴
 print(len(trains_mfcc))
 trains_mfcc = np.array(trains_mfcc)
-trains_mfcc = trains_mfcc.reshape(-1, len(trains_mfcc), trains_mfcc.shape[1], -1)
+trains_mfcc = trains_mfcc.reshape(-1, trains_mfcc.shape[1], trains_mfcc.shape[2], 1)
 print(trains_mfcc.shape)
 train_X = trains_mfcc
 train_y = np.array(train_data_set.label)
@@ -201,20 +196,10 @@ test_data_y = train_y[len(train_X) - 12:]
 
 train_X = train_X[:len(train_X) - 12]
 train_y = train_y[:len(train_y) - 12]
-
-from torch.utils.data.dataset import random_split
-num_epochs = 60 # 학습을 num_epochs만큼 돌림
-batch_size = 6   # 배치 사이즈 설정
-# 학습을 위한 데이터로 변환(torch.tensor)
-
-from keras.models import Sequential
-from keras.layers import Dropout, Dense, Activation, Flatten, Conv2D, MaxPooling2D, GlobalAveragePooling2D
+from keras import layers
 from keras.layers import LSTM
-from keras.optimizers import Adam
-from keras.utils import np_utils
-import keras
-model = Sequential()
-model.add(LSTM(256, input_shape=(120, 1)))
+model = keras.Sequential()
+model.add(layers.LSTM(256, input_shape=(120, 1), return_sequences=False))
 model.add(Dense(512, activation="relu"))
 model.add(Dropout(0.2))
 model.add(Dense(512, activation="relu"))
@@ -226,13 +211,18 @@ model.add(Dropout(0.2))
 model.add(Dense(6, activation="softmax"))
 
 model.summary()
+batch_size = 6
+num_epoc = 100
 
 vail_X = train_X[34745:]
 vail_y = train_y[34745:]
 train_X = train_X[:34745]
 train_y = train_y[:34745]
-batch_size = 6
-num_epoc = 100
+
 optimizer = keras.optimizers.Adam(learning_rate=0.001)
 model.compile(loss="categorical_crossentropy", optimizer=optimizer, metrics=["acc"])
 history = model.fit(train_X, train_y, batch_size=batch_size, epochs=num_epoc)
+
+model.save("C:\\Users\\user\\Desktop\\ai\\mobail_model_2layer")
+ans = model.evaluate(test_data_X, test_data_y, batch_size=6)
+print(ans)
