@@ -297,6 +297,7 @@ class CNNclassification(torch.nn.Module): # 4중 layer로 구현
              nn.MaxPool2d(kernel_size=2, stride=2))  # pooling layer
 
          self.fc_layer = nn.Sequential(
+             nn.Dropout(0.25),
              nn.Linear(200 * 5 * 1, 6)  # fully connected layer(ouput layer)
          )
 
@@ -309,6 +310,67 @@ class CNNclassification(torch.nn.Module): # 4중 layer로 구현
          x = torch.flatten(x, start_dim=1)
          out = self.fc_layer(x)
          return out
+
+
+class ResidualConnection_CNN(torch.nn.Module):  # 4중 layer로 구현
+    def __init__(self):
+        super(CNNclassification, self).__init__()
+        self.residual_block1 = torch.nn.Sequential(
+            nn.Conv2d(120, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1)
+        )  # pooling layer
+
+        self.residual_block2 = torch.nn.Sequential(
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1)
+        )  # pooling layer
+
+        self.residual_block3 = torch.nn.Sequential(
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1)
+        )  # pooling layer
+
+        self.residual_block4 = torch.nn.Sequential(
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1),  # cnn layer
+            nn.ReLU(),  # activation function
+            nn.Conv2d(200, 200, kernel_size=2, stride=1, padding=1)
+        )  # pooling layer
+        self.relu = torch.nn.ReLU()
+
+        self.fc_layer1 = nn.Sequential(
+            nn.Dropout(0.25),
+            nn.Linear(200 * 80 * 1, 1000)  # fully connected layer(ouput layer)
+        )
+        self.fc_layer2 = nn.Sequential(
+            nn.Dropout(0.25),
+            nn.Linear(1000, 6)
+        )
+
+    def forward(self, x):
+        x1 = self.residual_block1(x)
+        x1 = x1 + x
+        x1 = self.relu(x1)
+
+        x2 = self.residual_block2(x1)
+        x2 = x2 + x1
+        x2 = self.relu(x2)
+
+        x3 = self.residual_block3(x2)
+        x3 = x3 + x2
+        x3 = self.relu(x3)
+
+        x4 = self.residual_block4(x3)
+        x4 = x4 + x3
+        x4 = self.relu(x4)
+
+        x4 = torch.flatten(x4, start_dim=1)
+        out = self.fc_layer1(x4)
+        out = self.fc_layer2(out)
+
+        return out
 from torch.autograd import Variable
 class LSTMclassification(torch.nn.Module):
     def __init__(self, input_size, hidden_size, num_layer):
